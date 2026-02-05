@@ -10,7 +10,8 @@ from typing import Optional
 class WebExNotifier:
     def __init__(self):
         self.bot_token = os.getenv("WEBEX_BOT_TOKEN")
-        self.room_id = os.getenv("WEBEX_ROOM_ID")
+        self.room_id = os.getenv("WEBEX_ROOM_ID", None)
+        self.person_email = os.getenv("WEBEX_PERSON_EMAIL", None)
         self.max_retries = int(os.getenv("WEBEX_MAX_RETRIES", 3))
         self.retry_delay = float(os.getenv("WEBEX_RETRY_DELAY", 2))
         self.rate_limit_messages = int(os.getenv("WEBEX_RATE_LIMIT_MESSAGES", 30))
@@ -21,8 +22,10 @@ class WebExNotifier:
         # Rate limiting tracking
         self.message_timestamps = []
 
-        if not self.bot_token or not self.room_id:
-            raise ValueError("WEBEX_BOT_TOKEN and WEBEX_ROOM_ID must be set in .env")
+        if not self.bot_token:
+            raise ValueError("WEBEX_BOT_TOKEN must be set in .env")
+        if not self.room_id and not self.person_email:
+            raise ValueError("Either WEBEX_ROOM_ID or WEBEX_PERSON_EMAIL must be set in .env")
 
     def _rate_limit_check(self) -> None:
         """Check and enforce rate limiting."""
@@ -40,8 +43,8 @@ class WebExNotifier:
 
         self.message_timestamps.append(now)
 
-    def send_notification(self, text: str, priority: bool = False) -> dict:
-        """Send text notification via WebEx."""
+    def send_notification(self, text: str, priority: bool = False, to_email: str = None) -> dict:
+        """Send text notification via WebEx to room or direct message to person."""
         try:
             import requests
 
@@ -53,10 +56,23 @@ class WebExNotifier:
                 "Authorization": f"Bearer {self.bot_token}",
                 "Content-Type": "application/json"
             }
-            payload = {
-                "roomId": self.room_id,
-                "markdown": text
-            }
+
+            # Use provided email or environment variable, or room
+            if to_email:
+                payload = {
+                    "toPersonEmail": to_email,
+                    "markdown": text
+                }
+            elif self.person_email:
+                payload = {
+                    "toPersonEmail": self.person_email,
+                    "markdown": text
+                }
+            else:
+                payload = {
+                    "roomId": self.room_id,
+                    "markdown": text
+                }
 
             for attempt in range(self.max_retries):
                 try:
