@@ -1,0 +1,58 @@
+{
+  "name": "webex-notify",
+  "description": "Send WebEx notifications to flipkey-home-bot with markdown formatting, auto-retry, rate limiting, and logging",
+  "version": "1.0.0",
+  "author": "FosterbotHome",
+  "category": "notifications",
+  "is_public": true,
+  "keywords": ["webex", "notification", "alert", "messaging", "bot", "flipkey"],
+  "intents": ["send_notification", "send_alert", "test_connection", "get_history"],
+  "supported_actions": [
+    "send_notification",
+    "send_alert",
+    "get_message_history",
+    "test_connection",
+    "configure"
+  ],
+  "parameters": {
+    "properties": {
+      "action": {
+        "type": "string",
+        "description": "Action to perform",
+        "required": true
+      },
+      "text": {
+        "type": "string",
+        "description": "Notification text (markdown supported)",
+        "required": false
+      },
+      "priority": {
+        "type": "boolean",
+        "description": "High priority alert",
+        "required": false
+      }
+    }
+  },
+  "returns": {
+    "success": {"type": "boolean"},
+    "message": {"type": "string"},
+    "result": {"type": "object"}
+  },
+  "runtimes": {
+    "claude": {
+      "implementation": "claude/implementation/webex_notify.py",
+      "type": "python_class"
+    },
+    "copilot": {
+      "implementation": "copilot/implementation/webex_notify_cli.py",
+      "type": "python_cli"
+    },
+    "gemini": {
+      "implementation": "gemini/implementation/webex_notify_functions.py",
+      "type": "function_definitions"
+    }
+  },
+  "dependencies": {
+    "python": ["requests"]
+  }
+}
