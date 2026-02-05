@@ -2,9 +2,89 @@
 
 import json
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Dict, List, Optional
+
+
+def parse_schedule_to_next_run(schedule: str) -> Optional[str]:
+    """Parse schedule string and return ISO datetime string for next run."""
+    schedule = schedule.lower().strip()
+    now = datetime.utcnow()
+
+    # Handle "in X minutes/hours/seconds" format
+    if schedule.startswith("in "):
+        parts = schedule[3:].split()
+        if len(parts) >= 2:
+            try:
+                amount = int(parts[0])
+                unit = parts[1].rstrip('s')
+
+                if unit == "minute":
+                    next_run = now + timedelta(minutes=amount)
+                elif unit == "hour":
+                    next_run = now + timedelta(hours=amount)
+                elif unit == "second":
+                    next_run = now + timedelta(seconds=amount)
+                elif unit == "day":
+                    next_run = now + timedelta(days=amount)
+                else:
+                    return None
+
+                return next_run.isoformat() + "Z"
+            except ValueError:
+                pass
+
+    # Handle "every X minutes/hours/days" format
+    if schedule.startswith("every "):
+        parts = schedule[6:].split()
+        if len(parts) >= 2:
+            try:
+                amount = int(parts[0])
+                unit = parts[1].rstrip('s')
+
+                if unit == "minute":
+                    next_run = now + timedelta(minutes=amount)
+                elif unit == "hour":
+                    next_run = now + timedelta(hours=amount)
+                elif unit == "day":
+                    next_run = now + timedelta(days=amount)
+                else:
+                    return None
+
+                return next_run.isoformat() + "Z"
+            except ValueError:
+                pass
+
+        # Handle "every day at HH:MM" or "every day at HHam/pm"
+        if "at" in schedule:
+            time_part = schedule.split("at")[1].strip()
+            try:
+                # Parse "9am" or "14:30" format
+                if "am" in time_part or "pm" in time_part:
+                    time_obj = datetime.strptime(
+                        time_part.replace("am", "").replace("pm", "").strip(), "%I"
+                    ).time()
+                    if "pm" in time_part and time_obj.hour != 12:
+                        time_obj = time_obj.replace(hour=time_obj.hour + 12)
+                    elif "am" in time_part and time_obj.hour == 12:
+                        time_obj = time_obj.replace(hour=0)
+                else:
+                    # Try HH:MM format
+                    time_obj = datetime.strptime(time_part, "%H:%M").time()
+
+                next_run = now.replace(
+                    hour=time_obj.hour, minute=time_obj.minute, second=0, microsecond=0
+                )
+                if next_run <= now:
+                    next_run += timedelta(days=1)
+
+                return next_run.isoformat() + "Z"
+            except (ValueError, AttributeError):
+                pass
+
+    return None
+
 
 class TaskScheduler:
     def __init__(self, config: Optional[Dict] = None):
@@ -33,7 +113,10 @@ class TaskScheduler:
         """Create a scheduled task."""
         jobs = self._load_jobs()
         job_id = name.lower().replace(" ", "-")
-        
+
+        # Calculate next run time
+        next_run = parse_schedule_to_next_run(schedule)
+
         job = {
             "id": job_id,
             "name": name,
@@ -42,17 +125,17 @@ class TaskScheduler:
             "task": task,
             "schedule": schedule,
             "created_at": datetime.utcnow().isoformat() + "Z",
-            "next_run": None,
+            "next_run": next_run,
             "last_run": None,
             "enabled": True,
             "retries": 0
         }
-        
+
         jobs["jobs"].append(job)
         self._save_jobs(jobs)
-        self._log(job_id, f"Scheduled task: {name}")
-        
-        return {"success": True, "result": job, "message": f"Task '{name}' scheduled"}
+        self._log(job_id, f"Scheduled task: {name} (next run: {next_run})")
+
+        return {"success": True, "result": job, "message": f"Task '{name}' scheduled for {next_run}"}
     
     def list_jobs(self) -> Dict:
         """List all scheduled jobs."""
@@ -104,7 +187,8 @@ class TaskScheduler:
         """Log to job-specific log file."""
         log_file = self.logs_dir / f"{job_id}.log"
         timestamp = datetime.utcnow().isoformat() + "Z"
-        log_file.write_text(f"[{timestamp}] {message}\n", "a")
+        with open(log_file, "a") as f:
+            f.write(f"[{timestamp}] {message}\n")
     
     def doctor(self) -> Dict:
         """Diagnostic tool."""
