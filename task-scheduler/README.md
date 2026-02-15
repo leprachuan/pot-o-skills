@@ -4,15 +4,18 @@ Schedule and manage agent tasks with natural language timing.
 
 ## ⚠️ Dependencies
 
-**Required**: Wee-Orchestrator (n8n-copilot-shim)
-- Repository: https://github.com/leprachuan/Wee-Orchestrator.git
-- Location: `/opt/n8n-copilot-shim/`
-- Purpose: Executes scheduled tasks via agent_manager.py
+**Required**: Wee-Orchestrator
+- **Project Name**: Wee-Orchestrator (formerly n8n-copilot-shim)
+- **Repository**: https://github.com/leprachuan/Wee-Orchestrator.git
+- **Local Folder** (legacy name): `/opt/n8n-copilot-shim/`
+- **Purpose**: Executes scheduled tasks via agent_manager.py
 
 Clone with:
 ```bash
 git clone https://github.com/leprachuan/Wee-Orchestrator.git /opt/n8n-copilot-shim
 ```
+
+> **Note**: The project was renamed to **Wee-Orchestrator**, but the local folder remains named `n8n-copilot-shim` for backwards compatibility with existing configurations.
 
 ## Features
 

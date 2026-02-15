@@ -2,16 +2,19 @@
 
 ## Dependencies
 
-This skill requires **Wee-Orchestrator** (n8n-copilot-shim) to be installed:
+This skill requires **Wee-Orchestrator** to be installed:
 
+- **Project Name**: Wee-Orchestrator (formerly n8n-copilot-shim)
 - **Repository**: https://github.com/leprachuan/Wee-Orchestrator.git
-- **Install location**: `/opt/n8n-copilot-shim/`
+- **Local Folder** (legacy name): `/opt/n8n-copilot-shim/`
 - **Purpose**: Provides agent_manager.py for executing LLM tasks with multiple runtimes (Claude, Copilot, Gemini)
 
 Clone it with:
 ```bash
 git clone https://github.com/leprachuan/Wee-Orchestrator.git /opt/n8n-copilot-shim
 ```
+
+> **Naming Note**: The project was renamed to **Wee-Orchestrator**, but the local folder is kept as `n8n-copilot-shim` for backwards compatibility.
 
 ## Installation Steps
 
