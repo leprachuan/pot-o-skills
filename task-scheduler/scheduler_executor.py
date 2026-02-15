@@ -142,11 +142,12 @@ class TaskSchedulerExecutor:
             # Build command for agent_manager.py
             cmd = [
                 "python3",
-                "/opt/n8n-copilot-shim/agent_manager.py",
+                "/opt/n8n-copilot-shim-dev/agent_manager.py",
+                "--config", str(self.config_file),
                 "--agent", agent,
                 "--runtime", runtime,
                 "--model", "sonnet" if runtime == "claude" else "gemini-1.5-pro",
-                "--config", str(self.config_file),
+                "--mode", "yolo",  # Bypass permissions for all scheduled tasks
                 task,
                 session_id
             ]
