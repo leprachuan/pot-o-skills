@@ -270,14 +270,22 @@ class TaskSchedulerExecutor:
             now = datetime.utcnow()
             job["last_run"] = now.isoformat() + "Z"
 
-            # Calculate next run
-            next_run = self._calculate_next_run(job.get("schedule", ""))
-            if next_run:
-                job["next_run"] = next_run
+            # Handle recurring vs one-time jobs
+            recurring = job.get("recurring", True)  # Default: recurring
+
+            if recurring:
+                # Recurring job - calculate next run
+                next_run = self._calculate_next_run(job.get("schedule", ""))
+                if next_run:
+                    job["next_run"] = next_run
+                else:
+                    # If we can't calculate next run, disable the job
+                    job["enabled"] = False
+                    self._log_job(job_id, "Could not calculate next run, disabling job")
             else:
-                # If we can't calculate next run, disable the job
+                # One-time job - disable after running
                 job["enabled"] = False
-                self._log_job(job_id, "Could not calculate next run, disabling job")
+                self._log_job(job_id, "One-time job completed, disabling")
 
         self._save_jobs(data)
 
