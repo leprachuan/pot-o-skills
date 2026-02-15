@@ -2,6 +2,20 @@
 
 Schedule and manage agent tasks with natural language timing.
 
+## 🖥️ Host Requirements
+
+**CLI-Tools host only** (`/opt/` on Linux)
+
+This skill can **ONLY** be executed on the CLI-Tools host. It is **NOT available** on:
+- ❌ MacBook (`~/Documents/fosterbot-home/`)
+- ❌ lepbuntu or other hosts
+
+**Reason**: The skill requires:
+- `/opt/n8n-copilot-shim/` (Wee-Orchestrator with agent_manager.py)
+- `/opt/.task-scheduler/` directories
+- `task-scheduler-executor` systemd service
+- APScheduler with Linux-based scheduling
+
 ## ⚠️ Dependencies
 
 **Required**: Wee-Orchestrator

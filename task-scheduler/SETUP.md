@@ -1,5 +1,17 @@
 # Setup
 
+## 🖥️ Host Requirements
+
+**CLI-Tools host only** (`/opt/` on Linux)
+
+This skill can **ONLY** be executed on the CLI-Tools host. It is **NOT available** on:
+- ❌ MacBook (`~/Documents/fosterbot-home/`)
+- ❌ lepbuntu or other hosts
+
+**Reason**: The skill requires systemd services, `/opt/` infrastructure, and Linux-based APScheduler that are only available on the CLI-Tools host.
+
+---
+
 ## Dependencies
 
 This skill requires **Wee-Orchestrator** to be installed:
