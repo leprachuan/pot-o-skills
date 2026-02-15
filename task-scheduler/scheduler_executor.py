@@ -10,6 +10,13 @@ from pathlib import Path
 from typing import Dict, List, Optional
 import logging
 
+# Import TelegramNotifier for direct Telegram notifications (avoid agent_manager overhead)
+sys.path.insert(0, '/opt/skills/telegram-notify')
+try:
+    from shared_infrastructure import TelegramNotifier
+except ImportError:
+    TelegramNotifier = None
+
 # Setup logging
 logging.basicConfig(
     level=logging.INFO,
@@ -186,29 +193,50 @@ class JobExecutor:
             return False
 
     def _send_telegram(self, message: str, job_id: str) -> bool:
-        """Send Telegram notification."""
+        """Send Telegram notification directly via TelegramNotifier.
+
+        This avoids the overhead of delegating to agent_manager, which was causing
+        30-second timeouts. Direct API calls are much faster (typically <1s).
+        Resolves: https://github.com/leprachuan/Wee-Orchestrator/issues/10
+        """
         try:
-            cmd = [
-                "python3",
-                "/opt/n8n-copilot-shim/agent_manager.py",
-                "--agent", "orchestrator",
-                "--runtime", "claude",
-                "--model", "sonnet",
-                "--config", str(self.config_file),
-                f"Send a telegram notification with message: {message}",
-                f"telegram-{job_id}-{int(time.time())}"
-            ]
+            # Use direct TelegramNotifier if available
+            if TelegramNotifier:
+                logger.info(f"Sending telegram for job {job_id} (direct): {message[:50]}...")
+                notifier = TelegramNotifier()
+                result = notifier.send_notification(message)
 
-            logger.info(f"Sending telegram for job {job_id}: {message}")
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
-
-            if result.returncode == 0:
-                self._log_job(job_id, f"Telegram sent: {message}")
-                return True
+                if result.get("success"):
+                    self._log_job(job_id, f"Telegram sent: {message}")
+                    return True
+                else:
+                    error = result.get("message", "Unknown error")
+                    self._log_job(job_id, f"Telegram failed: {error}")
+                    return False
             else:
-                error = result.stderr or result.stdout
-                self._log_job(job_id, f"Telegram failed: {error}")
-                return False
+                # Fallback: delegate to agent_manager if TelegramNotifier not available
+                logger.warning(f"TelegramNotifier not available, falling back to agent_manager")
+                cmd = [
+                    "python3",
+                    "/opt/n8n-copilot-shim/agent_manager.py",
+                    "--agent", "orchestrator",
+                    "--runtime", "claude",
+                    "--model", "sonnet",
+                    "--config", str(self.config_file),
+                    f"Send a telegram notification with message: {message}",
+                    f"telegram-{job_id}-{int(time.time())}"
+                ]
+
+                logger.info(f"Sending telegram for job {job_id} (via agent_manager): {message}")
+                result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+
+                if result.returncode == 0:
+                    self._log_job(job_id, f"Telegram sent: {message}")
+                    return True
+                else:
+                    error = result.stderr or result.stdout
+                    self._log_job(job_id, f"Telegram failed: {error}")
+                    return False
 
         except Exception as e:
             logger.error(f"Failed to send telegram for {job_id}: {e}")
