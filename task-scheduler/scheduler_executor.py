@@ -43,10 +43,12 @@ class TaskSchedulerExecutor:
     def __init__(self):
         self.jobs_file = Path("/opt/.task-scheduler/jobs.json")
         self.logs_dir = Path("/opt/.task-scheduler/logs/")
+        self.results_dir = Path("/opt/.task-scheduler/results/")
         self.config_file = Path("/opt/agents.json")
 
         self.jobs_file.parent.mkdir(parents=True, exist_ok=True)
         self.logs_dir.mkdir(parents=True, exist_ok=True)
+        self.results_dir.mkdir(parents=True, exist_ok=True)
 
     def _load_jobs(self) -> Dict:
         """Load jobs from JSON."""
@@ -74,6 +76,30 @@ class TaskSchedulerExecutor:
                 f.write(f"[{timestamp}] {message}\n")
         except Exception as e:
             logger.error(f"Failed to log job {job_id}: {e}")
+
+    def _save_result(self, job_id: str, job_name: str, success: bool, output: str = "", error: str = ""):
+        """Save full execution result to results database.
+
+        Creates a JSON file with complete execution details for auditing and analysis.
+        """
+        result_file = self.results_dir / f"{job_id}.jsonl"
+        timestamp = datetime.utcnow().isoformat() + "Z"
+
+        result = {
+            "timestamp": timestamp,
+            "job_id": job_id,
+            "job_name": job_name,
+            "success": success,
+            "output": output[:5000] if output else "",  # Keep first 5000 chars
+            "error": error[:5000] if error else "",     # Keep first 5000 chars
+        }
+
+        try:
+            # Append to JSONL file (one JSON object per line)
+            with open(result_file, "a") as f:
+                f.write(json.dumps(result) + "\n")
+        except Exception as e:
+            logger.error(f"Failed to save result for job {job_id}: {e}")
 
     def _send_telegram(self, message: str, job_id: str) -> bool:
         """Send result via Telegram notification."""
@@ -139,6 +165,7 @@ class TaskSchedulerExecutor:
             if result.returncode == 0:
                 output = result.stdout.strip()
                 self._log_job(job_id, f"Execution succeeded")
+                self._save_result(job_id, job["name"], success=True, output=output)
                 logger.info(f"Job {job_id} completed successfully")
 
                 # Send notification if enabled
@@ -150,6 +177,7 @@ class TaskSchedulerExecutor:
             else:
                 error_msg = result.stderr or result.stdout
                 self._log_job(job_id, f"Execution failed: {error_msg[:200]}")
+                self._save_result(job_id, job["name"], success=False, error=error_msg)
                 logger.error(f"Job {job_id} failed with code {result.returncode}")
 
                 # Send error notification if enabled
@@ -161,6 +189,7 @@ class TaskSchedulerExecutor:
 
         except subprocess.TimeoutExpired:
             self._log_job(job_id, "Execution timed out (5 minutes)")
+            self._save_result(job_id, job["name"], success=False, error="Execution timed out (5 minutes)")
             logger.error(f"Job {job_id} execution timed out")
 
             if job.get("notify"):
@@ -171,12 +200,14 @@ class TaskSchedulerExecutor:
             return None
 
         except Exception as e:
-            self._log_job(job_id, f"Exception: {str(e)}")
+            error_str = str(e)
+            self._log_job(job_id, f"Exception: {error_str}")
+            self._save_result(job_id, job["name"], success=False, error=error_str)
             logger.error(f"Failed to execute job {job_id}: {e}")
 
             if job.get("notify"):
                 self._send_telegram(
-                    f"⚠️ *Job Exception*\n\n*Task:* {task[:100]}\n\n*Error:*\n{str(e)[:200]}",
+                    f"⚠️ *Job Exception*\n\n*Task:* {task[:100]}\n\n*Error:*\n{error_str[:200]}",
                     job_id
                 )
             return None
