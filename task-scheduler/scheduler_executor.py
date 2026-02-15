@@ -142,7 +142,7 @@ class TaskSchedulerExecutor:
             # Build command for agent_manager.py
             cmd = [
                 "python3",
-                "/opt/n8n-copilot-shim-dev/agent_manager.py",
+                "/opt/n8n-copilot-shim/agent_manager.py",  # Use prod (now has --mode support)
                 "--config", str(self.config_file),
                 "--agent", agent,
                 "--runtime", runtime,
