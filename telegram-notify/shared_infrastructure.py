@@ -6,13 +6,35 @@ from pathlib import Path
 from typing import Optional
 
 class TelegramNotifier:
+    def _load_env_file(self):
+        """Load .env file from skill directory or parent directories."""
+        env_paths = [
+            Path(__file__).parent / ".env",  # /opt/skills/telegram-notify/.env
+            Path("/opt/skills/telegram-notify/.env",),
+        ]
+
+        for env_path in env_paths:
+            if env_path.exists():
+                with open(env_path) as f:
+                    for line in f:
+                        line = line.strip()
+                        if line and not line.startswith("#") and "=" in line:
+                            key, value = line.split("=", 1)
+                            if key not in os.environ:  # Don't override existing env vars
+                                os.environ[key] = value
+                return True
+        return False
+
     def __init__(self):
+        # Load from .env file first, then environment variables
+        self._load_env_file()
+
         self.bot_token = os.getenv("TELEGRAM_BOT_TOKEN")
         self.chat_id = os.getenv("TELEGRAM_CHAT_ID")
         self.max_retries = int(os.getenv("TELEGRAM_MAX_RETRIES", 3))
         self.logs_dir = Path(os.getenv("TELEGRAM_LOGS_DIR", "/opt/.telegram-notify/logs/"))
         self.logs_dir.mkdir(parents=True, exist_ok=True)
-        
+
         if not self.bot_token or not self.chat_id:
             raise ValueError("TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID must be set in .env")
     
