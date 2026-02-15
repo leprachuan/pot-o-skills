@@ -22,6 +22,28 @@ git clone https://github.com/leprachuan/Wee-Orchestrator.git /opt/n8n-copilot-sh
 5. pip install apscheduler
 6. Ensure Wee-Orchestrator (n8n-copilot-shim) is installed at `/opt/n8n-copilot-shim/`
 
+## Configuration
+
+Configure the task scheduler via environment variables in `.env`:
+
+| Variable | Default | Description |
+| --- | --- | --- |
+| `SCHEDULER_JOBS_FILE` | `/opt/.task-scheduler/jobs.json` | Path to jobs database |
+| `SCHEDULER_LOGS_DIR` | `/opt/.task-scheduler/logs/` | Directory for job execution logs |
+| `SCHEDULER_RESULTS_DIR` | `/opt/.task-scheduler/results/` | Directory for JSONL results |
+| `SCHEDULER_DEFAULT_AGENT` | `orchestrator` | Default agent if not specified in job |
+| `SCHEDULER_DEFAULT_RUNTIME` | `claude` | Default runtime if not specified in job |
+| `SCHEDULER_RETRY_MAX` | `3` | Maximum retry attempts per job |
+
+### Example .env
+
+```bash
+SCHEDULER_DEFAULT_AGENT=my-orchestrator
+SCHEDULER_DEFAULT_RUNTIME=claude
+SCHEDULER_JOBS_FILE=/var/lib/task-scheduler/jobs.json
+SCHEDULER_LOGS_DIR=/var/log/task-scheduler/
+```
+
 ## Running the Scheduler
 
 The task scheduler runs as a systemd service:

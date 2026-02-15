@@ -131,8 +131,8 @@ class TaskSchedulerExecutor:
         """
         try:
             job_id = job["id"]
-            agent = job.get("agent", "orchestrator")
-            runtime = job.get("runtime", "claude")
+            agent = job.get("agent", os.getenv("SCHEDULER_DEFAULT_AGENT", "orchestrator"))
+            runtime = job.get("runtime", os.getenv("SCHEDULER_DEFAULT_RUNTIME", "claude"))
             task = job.get("task", "")
             notify = job.get("notify", False)  # Whether to send Telegram notification
 

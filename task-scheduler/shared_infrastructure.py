@@ -109,18 +109,23 @@ class TaskScheduler:
         """Save jobs to JSON."""
         self.jobs_file.write_text(json.dumps(data, indent=2))
     
-    def schedule_task(self, name: str, schedule: str, agent: str, runtime: str, task: str, notify: bool = False, recurring: bool = True) -> Dict:
+    def schedule_task(self, name: str, schedule: str, agent: str = None, runtime: str = None, task: str = "", notify: bool = False, recurring: bool = True) -> Dict:
         """Create a scheduled task.
 
         Args:
             name: Task name
             schedule: Schedule string (e.g., "in 2 minutes", "every day at 9am")
-            agent: Agent to run (e.g., "orchestrator")
-            runtime: Runtime (e.g., "claude")
+            agent: Agent to run (default: from SCHEDULER_DEFAULT_AGENT env var, or "orchestrator")
+            runtime: Runtime (default: from SCHEDULER_DEFAULT_RUNTIME env var, or "claude")
             task: Task description/prompt
             notify: Whether to send Telegram notification of results (default: False)
             recurring: Whether job recurs after running (default: True). False = one-time job.
         """
+        # Use provided values or fall back to environment variables or hardcoded defaults
+        if agent is None:
+            agent = os.getenv("SCHEDULER_DEFAULT_AGENT", "orchestrator")
+        if runtime is None:
+            runtime = os.getenv("SCHEDULER_DEFAULT_RUNTIME", "claude")
         jobs = self._load_jobs()
         job_id = name.lower().replace(" ", "-")
 

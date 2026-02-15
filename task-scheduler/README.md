@@ -34,14 +34,30 @@ git clone https://github.com/leprachuan/Wee-Orchestrator.git /opt/n8n-copilot-sh
    ```python
    from shared_infrastructure import TaskScheduler
    scheduler = TaskScheduler()
+
+   # Agent and runtime default to env vars (SCHEDULER_DEFAULT_AGENT, SCHEDULER_DEFAULT_RUNTIME)
    scheduler.schedule_task(
        name="Hello World",
        schedule="in 5 minutes",
-       agent="orchestrator",
-       runtime="claude",
        task="Say hello",
        notify=True
    )
+
+   # Or override defaults:
+   scheduler.schedule_task(
+       name="Custom Agent Task",
+       schedule="every day at 9am",
+       agent="my-agent",
+       runtime="gemini",
+       task="Do something",
+       recurring=True
+   )
    ```
 
-See SETUP.md for detailed setup instructions.
+## Configuration
+
+Configure defaults via environment variables (see SETUP.md):
+- `SCHEDULER_DEFAULT_AGENT` - Default agent name (default: `orchestrator`)
+- `SCHEDULER_DEFAULT_RUNTIME` - Default runtime (default: `claude`)
+
+See SETUP.md for detailed setup and configuration instructions.
