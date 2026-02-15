@@ -109,8 +109,17 @@ class TaskScheduler:
         """Save jobs to JSON."""
         self.jobs_file.write_text(json.dumps(data, indent=2))
     
-    def schedule_task(self, name: str, schedule: str, agent: str, runtime: str, task: str) -> Dict:
-        """Create a scheduled task."""
+    def schedule_task(self, name: str, schedule: str, agent: str, runtime: str, task: str, notify: bool = False) -> Dict:
+        """Create a scheduled task.
+
+        Args:
+            name: Task name
+            schedule: Schedule string (e.g., "in 2 minutes")
+            agent: Agent to run (e.g., "orchestrator")
+            runtime: Runtime (e.g., "claude")
+            task: Task description/prompt
+            notify: Whether to send Telegram notification of results (default: False)
+        """
         jobs = self._load_jobs()
         job_id = name.lower().replace(" ", "-")
 
@@ -124,6 +133,7 @@ class TaskScheduler:
             "runtime": runtime,
             "task": task,
             "schedule": schedule,
+            "notify": notify,
             "created_at": datetime.utcnow().isoformat() + "Z",
             "next_run": next_run,
             "last_run": None,
@@ -133,7 +143,7 @@ class TaskScheduler:
 
         jobs["jobs"].append(job)
         self._save_jobs(jobs)
-        self._log(job_id, f"Scheduled task: {name} (next run: {next_run})")
+        self._log(job_id, f"Scheduled task: {name} (next run: {next_run}, notify: {notify})")
 
         return {"success": True, "result": job, "message": f"Task '{name}' scheduled for {next_run}"}
     

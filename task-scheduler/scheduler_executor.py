@@ -1,21 +1,22 @@
-"""Background executor daemon for scheduled tasks."""
+"""
+Simplified task scheduler executor daemon.
+
+Runs as a systemd service, checking jobs.json every 1 second.
+For each job that's ready to run:
+- Executes via agent_manager.py
+- Captures results
+- Sends to Telegram if notification is enabled
+"""
 
 import json
 import os
 import subprocess
 import sys
 import time
-from datetime import datetime, timedelta
-from pathlib import Path
-from typing import Dict, List, Optional
 import logging
-
-# Import TelegramNotifier for direct Telegram notifications (avoid agent_manager overhead)
-sys.path.insert(0, '/opt/skills/telegram-notify')
-try:
-    from shared_infrastructure import TelegramNotifier
-except ImportError:
-    TelegramNotifier = None
+from datetime import datetime
+from pathlib import Path
+from typing import Dict, Optional
 
 # Setup logging
 logging.basicConfig(
@@ -28,96 +29,24 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-
-class ScheduleParser:
-    """Parse natural language schedules into datetime objects."""
-
-    @staticmethod
-    def parse_next_run(schedule: str) -> Optional[datetime]:
-        """
-        Parse schedule string and return next run datetime.
-
-        Supports:
-        - "in 5 minutes"
-        - "in 1 hour"
-        - "every day at 9am"
-        - "every day at 14:30"
-        - "every hour"
-        - "every 30 minutes"
-        """
-        schedule = schedule.lower().strip()
-        now = datetime.utcnow()
-
-        # Handle "in X minutes/hours/seconds" format
-        if schedule.startswith("in "):
-            parts = schedule[3:].split()
-            if len(parts) >= 2:
-                try:
-                    amount = int(parts[0])
-                    unit = parts[1].rstrip('s')  # Remove trailing 's'
-
-                    if unit == "minute":
-                        return now + timedelta(minutes=amount)
-                    elif unit == "hour":
-                        return now + timedelta(hours=amount)
-                    elif unit == "second":
-                        return now + timedelta(seconds=amount)
-                    elif unit == "day":
-                        return now + timedelta(days=amount)
-                except ValueError:
-                    pass
-
-        # Handle "every X minutes/hours/days" format
-        if schedule.startswith("every "):
-            parts = schedule[6:].split()
-            if len(parts) >= 2:
-                try:
-                    amount = int(parts[0])
-                    unit = parts[1].rstrip('s')
-
-                    if unit == "minute":
-                        return now + timedelta(minutes=amount)
-                    elif unit == "hour":
-                        return now + timedelta(hours=amount)
-                    elif unit == "day":
-                        return now + timedelta(days=amount)
-                except ValueError:
-                    pass
-
-            # Handle "every day at HH:MM" or "every day at HHam/pm"
-            if "at" in schedule:
-                time_part = schedule.split("at")[1].strip()
-                try:
-                    # Parse "9am" or "14:30" format
-                    if "am" in time_part or "pm" in time_part:
-                        # Simple am/pm parsing
-                        time_obj = datetime.strptime(time_part.replace("am", "").replace("pm", "").strip(), "%I").time()
-                        if "pm" in time_part and time_obj.hour != 12:
-                            time_obj = time_obj.replace(hour=time_obj.hour + 12)
-                        elif "am" in time_part and time_obj.hour == 12:
-                            time_obj = time_obj.replace(hour=0)
-                    else:
-                        # Try HH:MM format
-                        time_obj = datetime.strptime(time_part, "%H:%M").time()
-
-                    next_run = now.replace(hour=time_obj.hour, minute=time_obj.minute, second=0, microsecond=0)
-                    if next_run <= now:
-                        next_run += timedelta(days=1)
-                    return next_run
-                except (ValueError, AttributeError):
-                    pass
-
-        logger.warning(f"Could not parse schedule: {schedule}")
-        return None
+# Import TelegramNotifier for sending results
+sys.path.insert(0, '/opt/skills/telegram-notify')
+try:
+    from shared_infrastructure import TelegramNotifier
+except ImportError:
+    TelegramNotifier = None
 
 
-class JobExecutor:
-    """Execute scheduled jobs."""
+class TaskSchedulerExecutor:
+    """Execute scheduled jobs from jobs.json."""
 
     def __init__(self):
         self.jobs_file = Path("/opt/.task-scheduler/jobs.json")
         self.logs_dir = Path("/opt/.task-scheduler/logs/")
         self.config_file = Path("/opt/agents.json")
+
+        self.jobs_file.parent.mkdir(parents=True, exist_ok=True)
+        self.logs_dir.mkdir(parents=True, exist_ok=True)
 
     def _load_jobs(self) -> Dict:
         """Load jobs from JSON."""
@@ -137,7 +66,7 @@ class JobExecutor:
             logger.error(f"Failed to save jobs: {e}")
 
     def _log_job(self, job_id: str, message: str):
-        """Log job execution."""
+        """Log job execution to job-specific log file."""
         log_file = self.logs_dir / f"{job_id}.log"
         timestamp = datetime.utcnow().isoformat() + "Z"
         try:
@@ -146,21 +75,45 @@ class JobExecutor:
         except Exception as e:
             logger.error(f"Failed to log job {job_id}: {e}")
 
-    def _execute_task(self, job: Dict) -> bool:
-        """Execute a single task via agent_manager.py."""
+    def _send_telegram(self, message: str, job_id: str) -> bool:
+        """Send result via Telegram notification."""
+        try:
+            if not TelegramNotifier:
+                logger.warning("TelegramNotifier not available, skipping notification")
+                return False
+
+            notifier = TelegramNotifier()
+            result = notifier.send_notification(message)
+
+            if result.get("success"):
+                self._log_job(job_id, f"Notification sent to Telegram")
+                return True
+            else:
+                error = result.get("message", "Unknown error")
+                logger.error(f"Failed to send Telegram notification: {error}")
+                self._log_job(job_id, f"Notification failed: {error}")
+                return False
+        except Exception as e:
+            logger.error(f"Exception sending Telegram: {e}")
+            self._log_job(job_id, f"Exception sending notification: {str(e)}")
+            return False
+
+    def _execute_task(self, job: Dict) -> Optional[str]:
+        """
+        Execute a job via agent_manager.py.
+        Returns the execution result/output, or None if failed.
+        """
         try:
             job_id = job["id"]
             agent = job.get("agent", "orchestrator")
             runtime = job.get("runtime", "claude")
             task = job.get("task", "")
+            notify = job.get("notify", False)  # Whether to send Telegram notification
 
-            # Special handling for send_telegram tasks
-            if task.startswith("send_telegram:"):
-                message = task.replace("send_telegram:", "").strip()
-                return self._send_telegram(message, job_id)
-
-            # For other tasks, delegate to agent_manager.py
+            # Create session ID
             session_id = f"scheduled-{job_id}-{int(time.time())}"
+
+            # Build command for agent_manager.py
             cmd = [
                 "python3",
                 "/opt/n8n-copilot-shim/agent_manager.py",
@@ -172,137 +125,183 @@ class JobExecutor:
                 session_id
             ]
 
-            logger.info(f"Executing job {job_id}: {' '.join(cmd)}")
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+            logger.info(f"Executing job {job_id}: {task[:60]}...")
+            self._log_job(job_id, f"Starting execution via agent_manager.py")
+
+            # Execute with timeout
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=300  # 5 minute timeout
+            )
 
             if result.returncode == 0:
-                self._log_job(job_id, f"Task executed successfully. Session: {session_id}")
-                return True
+                output = result.stdout.strip()
+                self._log_job(job_id, f"Execution succeeded")
+                logger.info(f"Job {job_id} completed successfully")
+
+                # Send notification if enabled
+                if notify:
+                    notification_text = f"✅ *Job Completed*\n\n*Task:* {task[:100]}\n\n*Result:*\n{output[:500]}"
+                    self._send_telegram(notification_text, job_id)
+
+                return output
             else:
                 error_msg = result.stderr or result.stdout
-                self._log_job(job_id, f"Task failed with code {result.returncode}: {error_msg}")
-                return False
+                self._log_job(job_id, f"Execution failed: {error_msg[:200]}")
+                logger.error(f"Job {job_id} failed with code {result.returncode}")
+
+                # Send error notification if enabled
+                if notify:
+                    notification_text = f"❌ *Job Failed*\n\n*Task:* {task[:100]}\n\n*Error:*\n{error_msg[:500]}"
+                    self._send_telegram(notification_text, job_id)
+
+                return None
 
         except subprocess.TimeoutExpired:
-            self._log_job(job_id, "Task execution timed out")
+            self._log_job(job_id, "Execution timed out (5 minutes)")
             logger.error(f"Job {job_id} execution timed out")
-            return False
+
+            if job.get("notify"):
+                self._send_telegram(
+                    f"⏱️ *Job Timeout*\n\n*Task:* {task[:100]}\n\nExecution exceeded 5 minute limit",
+                    job_id
+                )
+            return None
+
         except Exception as e:
-            self._log_job(job_id, f"Execution error: {str(e)}")
+            self._log_job(job_id, f"Exception: {str(e)}")
             logger.error(f"Failed to execute job {job_id}: {e}")
+
+            if job.get("notify"):
+                self._send_telegram(
+                    f"⚠️ *Job Exception*\n\n*Task:* {task[:100]}\n\n*Error:*\n{str(e)[:200]}",
+                    job_id
+                )
+            return None
+
+    def _is_job_ready(self, job: Dict) -> bool:
+        """Check if a job is ready to execute (enabled and time has passed)."""
+        if not job.get("enabled", True):
             return False
 
-    def _send_telegram(self, message: str, job_id: str) -> bool:
-        """Send Telegram notification directly via TelegramNotifier.
+        next_run_str = job.get("next_run")
+        if not next_run_str:
+            return False
 
-        This avoids the overhead of delegating to agent_manager, which was causing
-        30-second timeouts. Direct API calls are much faster (typically <1s).
-        Resolves: https://github.com/leprachuan/Wee-Orchestrator/issues/10
-        """
         try:
-            # Use direct TelegramNotifier if available
-            if TelegramNotifier:
-                logger.info(f"Sending telegram for job {job_id} (direct): {message[:50]}...")
-                notifier = TelegramNotifier()
-                result = notifier.send_notification(message)
-
-                if result.get("success"):
-                    self._log_job(job_id, f"Telegram sent: {message}")
-                    return True
-                else:
-                    error = result.get("message", "Unknown error")
-                    self._log_job(job_id, f"Telegram failed: {error}")
-                    return False
-            else:
-                # Fallback: delegate to agent_manager if TelegramNotifier not available
-                logger.warning(f"TelegramNotifier not available, falling back to agent_manager")
-                cmd = [
-                    "python3",
-                    "/opt/n8n-copilot-shim/agent_manager.py",
-                    "--agent", "orchestrator",
-                    "--runtime", "claude",
-                    "--model", "sonnet",
-                    "--config", str(self.config_file),
-                    f"Send a telegram notification with message: {message}",
-                    f"telegram-{job_id}-{int(time.time())}"
-                ]
-
-                logger.info(f"Sending telegram for job {job_id} (via agent_manager): {message}")
-                result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
-
-                if result.returncode == 0:
-                    self._log_job(job_id, f"Telegram sent: {message}")
-                    return True
-                else:
-                    error = result.stderr or result.stdout
-                    self._log_job(job_id, f"Telegram failed: {error}")
-                    return False
-
-        except Exception as e:
-            logger.error(f"Failed to send telegram for {job_id}: {e}")
-            self._log_job(job_id, f"Telegram error: {str(e)}")
+            next_run = datetime.fromisoformat(next_run_str.replace("Z", "+00:00")).replace(tzinfo=None)
+            now = datetime.utcnow()
+            return next_run <= now
+        except (ValueError, TypeError):
+            logger.warning(f"Invalid next_run format: {next_run_str}")
             return False
 
-    def check_and_execute(self):
-        """Check for jobs that should run and execute them."""
-        data = self._load_jobs()
+    def _calculate_next_run(self, schedule: str) -> Optional[str]:
+        """Calculate next run time from schedule string."""
+        from datetime import timedelta
+
+        schedule = schedule.lower().strip()
         now = datetime.utcnow()
 
+        # Handle "in X minutes/hours/days" format
+        if schedule.startswith("in "):
+            parts = schedule[3:].split()
+            if len(parts) >= 2:
+                try:
+                    amount = int(parts[0])
+                    unit = parts[1].rstrip('s')
+
+                    if unit == "minute":
+                        next_run = now + timedelta(minutes=amount)
+                    elif unit == "hour":
+                        next_run = now + timedelta(hours=amount)
+                    elif unit == "second":
+                        next_run = now + timedelta(seconds=amount)
+                    elif unit == "day":
+                        next_run = now + timedelta(days=amount)
+                    else:
+                        return None
+
+                    return next_run.isoformat() + "Z"
+                except ValueError:
+                    return None
+
+        # Handle "every X minutes/hours/days" format
+        if schedule.startswith("every "):
+            parts = schedule[6:].split()
+            if len(parts) >= 2:
+                try:
+                    amount = int(parts[0])
+                    unit = parts[1].rstrip('s')
+
+                    if unit == "minute":
+                        next_run = now + timedelta(minutes=amount)
+                    elif unit == "hour":
+                        next_run = now + timedelta(hours=amount)
+                    elif unit == "day":
+                        next_run = now + timedelta(days=amount)
+                    else:
+                        return None
+
+                    return next_run.isoformat() + "Z"
+                except ValueError:
+                    return None
+
+        logger.warning(f"Could not parse schedule: {schedule}")
+        return None
+
+    def check_and_execute(self):
+        """Check for ready jobs and execute them."""
+        data = self._load_jobs()
+
         for job in data.get("jobs", []):
-            if not job.get("enabled", True):
+            if not self._is_job_ready(job):
                 continue
 
             job_id = job["id"]
-            next_run_str = job.get("next_run")
+            logger.info(f"Job ready: {job_id}")
 
-            # If next_run is not set, parse schedule to determine it
-            if not next_run_str:
-                next_run = ScheduleParser.parse_next_run(job.get("schedule", ""))
-                if next_run:
-                    job["next_run"] = next_run.isoformat() + "Z"
-                else:
-                    self._log_job(job_id, f"Could not parse schedule: {job.get('schedule')}")
-                    continue
+            # Execute the job
+            result = self._execute_task(job)
+
+            # Update job record
+            now = datetime.utcnow()
+            job["last_run"] = now.isoformat() + "Z"
+
+            # Calculate next run
+            next_run = self._calculate_next_run(job.get("schedule", ""))
+            if next_run:
+                job["next_run"] = next_run
             else:
-                next_run = datetime.fromisoformat(next_run_str.replace("Z", "+00:00")).replace(tzinfo=None)
-
-            # Check if it's time to execute
-            if next_run <= now:
-                logger.info(f"Executing job {job_id}")
-                success = self._execute_task(job)
-
-                # Update job status
-                job["last_run"] = now.isoformat() + "Z"
-                job["retries"] = 0
-
-                # Calculate next run
-                next_run = ScheduleParser.parse_next_run(job.get("schedule", ""))
-                if next_run:
-                    job["next_run"] = next_run.isoformat() + "Z"
-                    self._log_job(job_id, f"Execution {'succeeded' if success else 'failed'}. Next run: {job['next_run']}")
-                else:
-                    job["enabled"] = False
-                    self._log_job(job_id, "Could not calculate next run, disabling job")
+                # If we can't calculate next run, disable the job
+                job["enabled"] = False
+                self._log_job(job_id, "Could not calculate next run, disabling job")
 
         self._save_jobs(data)
 
+    def run(self):
+        """Main executor loop - runs forever, checking every 1 second."""
+        logger.info("Task scheduler executor started")
+
+        try:
+            while True:
+                try:
+                    self.check_and_execute()
+                    time.sleep(1)  # Check every 1 second
+                except Exception as e:
+                    logger.error(f"Error in execution loop: {e}")
+                    time.sleep(1)
+        except KeyboardInterrupt:
+            logger.info("Task scheduler executor stopped")
+            sys.exit(0)
+
 
 def main():
-    """Main executor loop."""
-    logger.info("Task scheduler executor started")
-    executor = JobExecutor()
-
-    try:
-        while True:
-            try:
-                executor.check_and_execute()
-                time.sleep(10)  # Check every 10 seconds
-            except Exception as e:
-                logger.error(f"Error in execution loop: {e}")
-                time.sleep(10)
-    except KeyboardInterrupt:
-        logger.info("Task scheduler executor stopped")
-        sys.exit(0)
+    """Entry point."""
+    executor = TaskSchedulerExecutor()
+    executor.run()
 
 
 if __name__ == "__main__":
