@@ -5,7 +5,7 @@ Runs as a systemd service, checking jobs.json every 1 second.
 For each job that's ready to run:
 - Executes via agent_manager.py
 - Captures results
-- Sends to Telegram if notification is enabled
+- Sends notification to the job creator via their original channel (Telegram or WebEx)
 """
 
 import json
@@ -29,12 +29,18 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Import TelegramNotifier for sending results
-sys.path.insert(0, '/opt/skills/telegram-notify')
+# Telegram connector for direct per-user delivery
+sys.path.insert(0, '/opt/n8n-copilot-shim')
 try:
-    from shared_infrastructure import TelegramNotifier
+    from telegram_connector import TelegramConnector as _TelegramConnector
 except ImportError:
-    TelegramNotifier = None
+    _TelegramConnector = None
+
+# WebEx connector for per-user delivery
+try:
+    from webex_connector import WebEXConnector as _WebEXConnector
+except ImportError:
+    _WebEXConnector = None
 
 
 class TaskSchedulerExecutor:
@@ -101,27 +107,81 @@ class TaskSchedulerExecutor:
         except Exception as e:
             logger.error(f"Failed to save result for job {job_id}: {e}")
 
-    def _send_telegram(self, message: str, job_id: str) -> bool:
-        """Send result via Telegram notification."""
+    def _notify_creator(self, job: Dict, message: str) -> bool:
+        """Send notification to the user who created the job, via their original channel.
+
+        Reads job["created_by"] = {"identity": ..., "channel": "telegram"|"webex", "username": ...}
+        Falls back to logging a warning if the channel is unknown or connectors are unavailable.
+        """
+        job_id = job.get("id", "unknown")
+        created_by = job.get("created_by", {})
+        channel = created_by.get("channel", "")
+        identity = created_by.get("identity", "")
+
+        if not channel or not identity:
+            logger.warning(f"Job {job_id}: no creator channel/identity stored, cannot notify")
+            self._log_job(job_id, "Notification skipped: no created_by info")
+            return False
+
+        if channel == "telegram":
+            return self._send_telegram_to(identity, message, job_id)
+        elif channel == "webex":
+            return self._send_webex_to(identity, message, job_id)
+        else:
+            logger.warning(f"Job {job_id}: unknown notification channel '{channel}'")
+            self._log_job(job_id, f"Notification skipped: unknown channel '{channel}'")
+            return False
+
+    def _send_telegram_to(self, chat_id: str, message: str, job_id: str) -> bool:
+        """Send a Telegram message directly to a specific chat_id (numeric string)."""
         try:
-            if not TelegramNotifier:
-                logger.warning("TelegramNotifier not available, skipping notification")
+            if not _TelegramConnector:
+                logger.warning("TelegramConnector not available, skipping Telegram notification")
+                self._log_job(job_id, "Telegram notification skipped: connector unavailable")
                 return False
 
-            notifier = TelegramNotifier()
-            result = notifier.send_notification(message)
-
-            if result.get("success"):
-                self._log_job(job_id, f"Notification sent to Telegram")
-                return True
-            else:
-                error = result.get("message", "Unknown error")
-                logger.error(f"Failed to send Telegram notification: {error}")
-                self._log_job(job_id, f"Notification failed: {error}")
+            script_dir = Path("/opt/n8n-copilot-shim")
+            config_path = script_dir / "telegram_config.json"
+            with open(config_path) as f:
+                cfg = json.load(f)
+            token = cfg.get("token") or os.getenv("TELEGRAM_BOT_TOKEN", "")
+            if not token:
+                logger.warning("No Telegram bot token configured")
                 return False
+
+            connector = _TelegramConnector(token, config_file=str(config_path))
+            connector.send_message(int(chat_id), message)
+            self._log_job(job_id, f"Telegram notification sent to chat_id={chat_id}")
+            return True
         except Exception as e:
-            logger.error(f"Exception sending Telegram: {e}")
-            self._log_job(job_id, f"Exception sending notification: {str(e)}")
+            logger.error(f"Failed to send Telegram notification to {chat_id}: {e}")
+            self._log_job(job_id, f"Telegram notification failed: {e}")
+            return False
+
+    def _send_webex_to(self, email: str, message: str, job_id: str) -> bool:
+        """Send a WebEx message to a specific user by email."""
+        try:
+            if not _WebEXConnector:
+                logger.warning("WebEXConnector not available, skipping WebEx notification")
+                self._log_job(job_id, "WebEx notification skipped: connector unavailable")
+                return False
+
+            script_dir = Path("/opt/n8n-copilot-shim")
+            config_path = script_dir / "webex_config.json"
+            with open(config_path) as f:
+                cfg = json.load(f)
+            token = cfg.get("bot_token") or os.getenv("WEBEX_BOT_TOKEN", "")
+            if not token:
+                logger.warning("No WebEx bot token configured")
+                return False
+
+            connector = _WebEXConnector(token, config_file=str(config_path))
+            connector.send_message(email, message)
+            self._log_job(job_id, f"WebEx notification sent to {email}")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to send WebEx notification to {email}: {e}")
+            self._log_job(job_id, f"WebEx notification failed: {e}")
             return False
 
     def _execute_task(self, job: Dict) -> Optional[str]:
@@ -171,8 +231,8 @@ class TaskSchedulerExecutor:
 
                 # Send notification if enabled
                 if notify:
-                    notification_text = f"✅ *Job Completed*\n\n*Task:* {task[:100]}\n\n*Result:*\n{output[:500]}"
-                    self._send_telegram(notification_text, job_id)
+                    notification_text = f"✅ Job Completed: {job['name']}\n\nTask: {task[:100]}\n\nResult:\n{output[:500]}"
+                    self._notify_creator(job, notification_text)
 
                 return output
             else:
@@ -183,8 +243,8 @@ class TaskSchedulerExecutor:
 
                 # Send error notification if enabled
                 if notify:
-                    notification_text = f"❌ *Job Failed*\n\n*Task:* {task[:100]}\n\n*Error:*\n{error_msg[:500]}"
-                    self._send_telegram(notification_text, job_id)
+                    notification_text = f"❌ Job Failed: {job['name']}\n\nTask: {task[:100]}\n\nError:\n{error_msg[:500]}"
+                    self._notify_creator(job, notification_text)
 
                 return None
 
@@ -194,9 +254,9 @@ class TaskSchedulerExecutor:
             logger.error(f"Job {job_id} execution timed out")
 
             if job.get("notify"):
-                self._send_telegram(
-                    f"⏱️ *Job Timeout*\n\n*Task:* {task[:100]}\n\nExecution exceeded 5 minute limit",
-                    job_id
+                self._notify_creator(
+                    job,
+                    f"⏱️ Job Timeout: {job['name']}\n\nTask: {task[:100]}\n\nExecution exceeded 5 minute limit",
                 )
             return None
 
@@ -207,9 +267,9 @@ class TaskSchedulerExecutor:
             logger.error(f"Failed to execute job {job_id}: {e}")
 
             if job.get("notify"):
-                self._send_telegram(
-                    f"⚠️ *Job Exception*\n\n*Task:* {task[:100]}\n\n*Error:*\n{error_str[:200]}",
-                    job_id
+                self._notify_creator(
+                    job,
+                    f"⚠️ Job Exception: {job['name']}\n\nTask: {task[:100]}\n\nError:\n{error_str[:200]}",
                 )
             return None
 
