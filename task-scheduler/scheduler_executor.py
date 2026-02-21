@@ -216,7 +216,7 @@ class TaskSchedulerExecutor:
                 "--agent", agent,
                 "--runtime", runtime,
                 "--model", model,
-                "--mode", job.get("mode", "yolo"),
+                "--mode", job.get("mode", "restricted"),
                 task,
                 session_id
             ]
