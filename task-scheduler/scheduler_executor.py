@@ -199,15 +199,24 @@ class TaskSchedulerExecutor:
             # Create session ID
             session_id = f"scheduled-{job_id}-{int(time.time())}"
 
+            # Pick a sensible default model per runtime (can be overridden via job["model"])
+            _default_models = {
+                "claude":   "sonnet",
+                "copilot":  "gpt-4o",
+                "gemini":   "gemini-1.5-pro",
+                "opencode": "gpt-4o",
+            }
+            model = job.get("model") or _default_models.get(runtime, "sonnet")
+
             # Build command for agent_manager.py
             cmd = [
                 "python3",
-                "/opt/n8n-copilot-shim/agent_manager.py",  # Use prod (now has --mode support)
+                "/opt/n8n-copilot-shim/agent_manager.py",
                 "--config", str(self.config_file),
                 "--agent", agent,
                 "--runtime", runtime,
-                "--model", "sonnet" if runtime == "claude" else "gemini-1.5-pro",
-                "--mode", "yolo",  # Bypass permissions for all scheduled tasks
+                "--model", model,
+                "--mode", job.get("mode", "yolo"),
                 task,
                 session_id
             ]
