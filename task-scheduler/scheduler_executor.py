@@ -202,7 +202,7 @@ class TaskSchedulerExecutor:
             # Pick a sensible default model per runtime (can be overridden via job["model"])
             _default_models = {
                 "claude":   "sonnet",
-                "copilot":  "gpt-4o",
+                "copilot":  "gpt-4.1",
                 "gemini":   "gemini-1.5-pro",
                 "opencode": "gpt-4o",
             }
