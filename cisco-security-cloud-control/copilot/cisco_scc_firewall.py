@@ -1,0 +1,183 @@
+import os
+import requests
+import json
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
+
+class CiscoSCCFirewallManager:
+    def __init__(self, region="us"):
+        self.api_key_id = os.getenv('CISCO_API_KEY_ID')
+        self.access_token = os.getenv('CISCO_ACCESS_TOKEN')
+        
+        if not all([self.api_key_id, self.access_token]):
+            raise ValueError("CISCO_API_KEY_ID and CISCO_ACCESS_TOKEN required in .env")
+        
+        # Support multi-region deployment
+        self.region = region
+        self.base_url = f"https://api.{region}.security.cisco.com/firewall/v1"
+        self.session = requests.Session()
+        self._setup_headers()
+    
+    def _setup_headers(self):
+        """Setup authorization headers"""
+        self.session.headers.update({
+            "Authorization": f"Bearer {self.access_token}",
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+        })
+    
+    def _make_request(self, method, endpoint, data=None, params=None):
+        """Make HTTP request to Cisco SCC Firewall API"""
+        url = f"{self.base_url}{endpoint}"
+        
+        try:
+            if method.upper() == "GET":
+                response = self.session.get(url, params=params, timeout=30)
+            elif method.upper() == "POST":
+                response = self.session.post(url, json=data, params=params, timeout=30)
+            elif method.upper() == "PATCH":
+                response = self.session.patch(url, json=data, params=params, timeout=30)
+            elif method.upper() == "PUT":
+                response = self.session.put(url, json=data, params=params, timeout=30)
+            elif method.upper() == "DELETE":
+                response = self.session.delete(url, params=params, timeout=30)
+            else:
+                raise ValueError(f"Unsupported HTTP method: {method}")
+            
+            response.raise_for_status()
+            return response.json() if response.text else {"status": "success"}
+        
+        except requests.exceptions.RequestException as e:
+            return {
+                "error": str(e),
+                "url": url,
+                "method": method,
+                "status_code": getattr(e.response, 'status_code', None)
+            }
+    
+    # Inventory Management
+    def list_devices(self, limit=50, offset=0):
+        """List all devices in inventory"""
+        return self._make_request("GET", "/inventory/devices", 
+                                params={"limit": limit, "offset": offset})
+    
+    def get_device(self, device_uid):
+        """Get device details"""
+        return self._make_request("GET", f"/inventory/devices/{device_uid}")
+    
+    def list_managers(self, query=None, limit=50, offset=0):
+        """List device managers (FMC, etc.)"""
+        params = {"limit": limit, "offset": offset}
+        if query:
+            params["q"] = query
+        return self._make_request("GET", "/inventory/managers", params=params)
+    
+    def get_cdfmc_manager(self):
+        """Get cloud-delivered FMC manager"""
+        return self._make_request("GET", "/inventory/managers", 
+                                params={"q": "deviceType:CDFMC"})
+    
+    def list_services(self, limit=50, offset=0):
+        """List cloud services"""
+        return self._make_request("GET", "/inventory/services", 
+                                params={"limit": limit, "offset": offset})
+    
+    # Cloud-delivered FMC Operations
+    def get_cdfmc_access_policies(self, domain_uid, limit=50, offset=0):
+        """Get all access policies from cdFMC"""
+        endpoint = f"/cdfmc/api/fmc_config/v1/domain/{domain_uid}/policy/accesspolicies"
+        return self._make_request("GET", endpoint, 
+                                params={"limit": limit, "offset": offset})
+    
+    def get_cdfmc_access_policy(self, domain_uid, policy_id):
+        """Get specific access policy from cdFMC"""
+        endpoint = f"/cdfmc/api/fmc_config/v1/domain/{domain_uid}/policy/accesspolicies/{policy_id}"
+        return self._make_request("GET", endpoint)
+    
+    def get_cdfmc_access_rules(self, domain_uid, policy_id, expanded=False):
+        """Get access rules for a policy in cdFMC"""
+        endpoint = f"/cdfmc/api/fmc_config/v1/domain/{domain_uid}/policy/accesspolicies/{policy_id}/accessrules"
+        params = {"expanded": "true" if expanded else "false"}
+        return self._make_request("GET", endpoint, params=params)
+    
+    def get_cdfmc_network_objects(self, domain_uid, limit=50, offset=0):
+        """Get network objects from cdFMC"""
+        endpoint = f"/cdfmc/api/fmc_config/v1/domain/{domain_uid}/object/networks"
+        return self._make_request("GET", endpoint, 
+                                params={"limit": limit, "offset": offset})
+    
+    # Object Management
+    def list_objects(self, object_type=None, limit=50, offset=0):
+        """List firewall policy objects"""
+        params = {"limit": limit, "offset": offset}
+        if object_type:
+            params["type"] = object_type
+        return self._make_request("GET", "/objects", params=params)
+    
+    def get_object(self, object_uid):
+        """Get object details"""
+        return self._make_request("GET", f"/objects/{object_uid}")
+    
+    # Deployment/Changes
+    def deploy_config(self, device_uid, config_data):
+        """Deploy configuration to device"""
+        return self._make_request("POST", f"/inventory/devices/{device_uid}/deploy", 
+                                data=config_data)
+    
+    # Monitoring
+    def get_device_health(self, device_uid):
+        """Get device health status"""
+        return self._make_request("GET", f"/inventory/devices/{device_uid}/health")
+    
+    def list_transactions(self, limit=50, offset=0):
+        """List asynchronous transactions"""
+        return self._make_request("GET", "/transactions", 
+                                params={"limit": limit, "offset": offset})
+    
+    def get_transaction(self, transaction_id):
+        """Get transaction status"""
+        return self._make_request("GET", f"/transactions/{transaction_id}")
+    
+    # Search
+    def search(self, query, resource_type=None):
+        """Search across Security Cloud Control"""
+        params = {"q": query}
+        if resource_type:
+            params["type"] = resource_type
+        return self._make_request("GET", "/search", params=params)
+    
+    # Changelog
+    def get_changelog(self, limit=50, offset=0):
+        """Get changelog of recent changes"""
+        return self._make_request("GET", "/changelog", 
+                                params={"limit": limit, "offset": offset})
+
+if __name__ == "__main__":
+    import sys
+    
+    region = sys.argv[2] if len(sys.argv) > 2 else "us"
+    client = CiscoSCCFirewallManager(region=region)
+    
+    if len(sys.argv) < 2:
+        print("Usage: python cisco_scc_firewall.py <action> [region] [additional_args]")
+        print("Regions: us, eu, apj, au, in")
+        print("Actions: list_devices, list_managers, get_cdfmc_manager, etc.")
+        sys.exit(1)
+    
+    action = sys.argv[1]
+    
+    # Route to appropriate method
+    if action == "list_devices":
+        result = client.list_devices()
+    elif action == "list_managers":
+        result = client.list_managers()
+    elif action == "get_cdfmc_manager":
+        result = client.get_cdfmc_manager()
+    elif action == "list_services":
+        result = client.list_services()
+    else:
+        result = {"error": f"Unknown action: {action}"}
+    
+    print(json.dumps(result, indent=2))
