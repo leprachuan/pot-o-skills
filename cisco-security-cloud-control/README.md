@@ -301,3 +301,18 @@ For issues:
 3. Review OpenAPI specs in `references/`
 4. Check troubleshooting section above
 5. Contact Cisco support if persisting
+
+## Understanding cdFMC & FTD Concepts
+
+For deeper understanding of cdFMC and Threat Defense concepts, refer to Cisco's official documentation:
+
+**Cisco Secure Firewall - Threat Defense 10.0.0 Documentation:**
+https://www.cisco.com/c/en/us/td/docs/security/secure-firewall/landing-page/threat-defense/threatdefense-10-0-0-docs.html
+
+This documentation covers:
+- Access Control policies and rules
+- Objects and object groups
+- Network configuration
+- Device management
+- Policy deployment
+- Threat defense features
