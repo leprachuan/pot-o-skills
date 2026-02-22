@@ -41,6 +41,16 @@ print(orgs)
 from copilot.cisco_scc_firewall import CiscoSCCFirewallManager
 
 fw_client = CiscoSCCFirewallManager(region="us")
+
+# Step 1: Get domain UUID (required for cdFMC operations)
+domain = fw_client.get_cdfmc_domain()
+domain_uid = domain['data']['id']  # Extract domain UUID
+
+# Step 2: Use domain UUID for policy queries
+policies = fw_client.get_cdfmc_access_policies(domain_uid)
+print(policies)
+
+# Step 3: List devices
 devices = fw_client.list_devices()
 print(devices)
 ```

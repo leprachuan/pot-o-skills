@@ -77,14 +77,22 @@ class CiscoSCCFirewallManager:
             params["q"] = query
         return self._make_request("GET", "/inventory/managers", params=params)
     
-    def get_cdfmc_manager(self):
-        """Get cloud-delivered FMC manager
+    def get_cdfmc_domain(self):
+        """Get cloud-delivered FMC domain UUID
         
-        Returns domain UUID and other FMC details needed for policy queries.
-        Endpoint structure: /cdfmc/api/fmc_config/v1/domain/{domainUUID}/...
+        This endpoint retrieves the domain UUID needed for all cdFMC operations.
+        Must be called first to get domain UUID for other policy/object queries.
+        
+        Returns domain object with UUID used in:
+        - /cdfmc/api/fmc_config/v1/domain/{domainUUID}/policy/accesspolicies
+        - /cdfmc/api/fmc_config/v1/domain/{domainUUID}/object/networks
+        - etc.
+        
+        Endpoint: /cdfmc/api/fmc_platform/v1/info/domain
         """
-        return self._make_request("GET", "/inventory/managers", 
-                                params={"q": "deviceType:CDFMC"})
+        endpoint = "/cdfmc/api/fmc_platform/v1/info/domain"
+        return self._make_request("GET", endpoint)
+    
     
     def list_services(self, limit=50, offset=0):
         """List cloud services"""
