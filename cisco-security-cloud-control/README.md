@@ -1,34 +1,19 @@
 # Cisco Security Cloud Control Skill
 
-Programmatic management of Cisco Security Cloud Control infrastructure across Claude, Copilot CLI, and Gemini.
+Comprehensive management of Cisco Security Cloud Control infrastructure including organization management, user administration, and advanced firewall management operations.
 
 ## Quick Start
 
-### 1. Get API Credentials
-
-1. Visit [Cisco Developer Console](https://developer.cisco.com/docs/security-cloud-control/introduction/)
-2. Create or obtain your API credentials:
-   - API Key ID
-   - Access Token
-   - Refresh Token
-
-### 2. Setup Credentials
-
-Copy `.env.example` to `.env` and add your credentials:
+### 1. Credentials Setup
+Your `.env` file is already configured with API credentials and git-ignored for security.
 
 ```bash
-cp .env.example .env
-# Edit .env with your actual credentials
+CISCO_API_KEY_ID=your_key_id
+CISCO_ACCESS_TOKEN=your_access_token
+CISCO_REFRESH_TOKEN=your_refresh_token
 ```
 
-Or set environment variables:
-```bash
-export CISCO_API_KEY_ID=your_key_id
-export CISCO_ACCESS_TOKEN=your_access_token
-export CISCO_REFRESH_TOKEN=your_refresh_token
-```
-
-### 3. Install Dependencies
+### 2. Install Dependencies
 
 **Python (Claude/Copilot):**
 ```bash
@@ -40,9 +25,9 @@ pip install requests python-dotenv pyjwt
 npm install axios dotenv jsonwebtoken
 ```
 
-### 4. Basic Usage
+### 3. Basic Usage
 
-**Python:**
+**Organization Management:**
 ```python
 from copilot.cisco_scc import CiscoSCCClient
 
@@ -51,16 +36,25 @@ orgs = client.list_organizations()
 print(orgs)
 ```
 
-**JavaScript:**
-```javascript
-const { CiscoSCCClient } = require('./gemini/cisco_scc');
+**Firewall Manager:**
+```python
+from copilot.cisco_scc_firewall import CiscoSCCFirewallManager
 
-const client = new CiscoSCCClient();
-const orgs = await client.listOrganizations();
-console.log(orgs);
+fw_client = CiscoSCCFirewallManager(region="us")
+devices = fw_client.list_devices()
+print(devices)
 ```
 
-## Key Operations
+**JavaScript:**
+```javascript
+const { CiscoSCCFirewallManager } = require('./gemini/cisco_scc_firewall');
+
+const fw_client = new CiscoSCCFirewallManager("us");
+const devices = await fw_client.listDevices();
+console.log(devices);
+```
+
+## Organization Management
 
 ### Organizations
 - ✅ List all organizations
@@ -86,28 +80,76 @@ console.log(orgs);
 - ✅ Assign role to user
 - ✅ Get role permissions
 
+## Firewall Manager Operations
+
+### Inventory Management
+- ✅ List devices
+- ✅ Get device details
+- ✅ List device managers
+- ✅ Get cloud-delivered FMC
+- ✅ List cloud services
+
+### Cloud-delivered FMC
+- ✅ Get access policies
+- ✅ Get specific access policy
+- ✅ Get access rules for policies
+- ✅ Manage network objects
+
+### Policy & Configuration
+- ✅ List firewall objects
+- ✅ Get object details
+- ✅ Deploy configurations to devices
+
+### Monitoring & Tracking
+- ✅ Get device health
+- ✅ List asynchronous transactions
+- ✅ Get transaction status
+- ✅ View changelog
+- ✅ Search across tenant
+
 ## Integrated Products
 
+**Organization Level:**
 - AI Defense
 - Firewall Management
 - Multicloud Defense
 - Secure Access
 - Secure Workload
 
+**Firewall Manager:**
+- Cloud-delivered Firewall Management Center (cdFMC)
+- Device Management
+- Policy Management
+- Object Management
+
+## Supported Regions
+
+- **us** - United States (api.us.security.cisco.com)
+- **eu** - Europe (api.eu.security.cisco.com)
+- **apj** - Asia-Pacific Japan (api.apj.security.cisco.com)
+- **au** - Australia (api.au.security.cisco.com)
+- **in** - India (api.in.security.cisco.com)
+
 ## File Structure
 
 ```
 cisco-security-cloud-control/
-├── .env.example           # Credentials template (copy to .env)
-├── SKILL.md              # Skill documentation
-├── skill_metadata.json   # Metadata and parameters
-├── README.md             # This file
-├── claude/               # Claude implementation
-├── copilot/              # Copilot CLI implementation
-├── gemini/               # Gemini implementation
-├── scripts/              # Helper scripts
-├── templates/            # API request templates
-└── references/           # API docs and guides
+├── .env.example                # Credentials template
+├── SKILL.md                    # Skill documentation
+├── skill_metadata.json         # Metadata and parameters
+├── README.md                   # This file
+├── claude/
+│   ├── cisco_scc.py           # Organization API
+│   └── cisco_scc_firewall.py  # Firewall Manager API
+├── copilot/
+│   ├── cisco_scc.py           # Organization API
+│   └── cisco_scc_firewall.py  # Firewall Manager API
+├── gemini/
+│   ├── cisco_scc.js           # Organization API
+│   └── cisco_scc_firewall.js  # Firewall Manager API
+├── scripts/                    # Helper scripts
+├── templates/                  # API request templates
+└── references/                 # API docs and guides
 ```
 
 ## Authentication
@@ -133,7 +175,9 @@ Uses OAuth 2.0 Bearer Token. Credentials managed via:
 
 ## Support
 
-- API Docs: https://developer.cisco.com/docs/security-cloud-control/
-- Base URL: https://api.security.cisco.com/v1
-- Endpoint Structure: `/organizations/{orgId}/...`
-- Issues: Check your API credentials in `.env`
+- **Organization API Docs:** https://developer.cisco.com/docs/security-cloud-control/
+- **Firewall Manager Docs:** https://developer.cisco.com/docs/cisco-security-cloud-control-firewall-manager/
+- **Base URL (Org):** https://api.security.cisco.com/v1
+- **Base URL (Firewall):** https://api.{region}.security.cisco.com/firewall/v1
+- **Issues:** Check your API credentials in `.env`
+

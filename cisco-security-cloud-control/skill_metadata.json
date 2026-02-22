@@ -57,25 +57,27 @@
   },
   "runtimes": {
     "claude": {
-      "implementation": "claude/cisco_scc.py",
+      "implementation": ["claude/cisco_scc.py", "claude/cisco_scc_firewall.py"],
       "requirements": ["requests", "python-dotenv", "pyjwt"]
     },
     "copilot": {
-      "implementation": "copilot/cisco_scc.py",
+      "implementation": ["copilot/cisco_scc.py", "copilot/cisco_scc_firewall.py"],
       "requirements": ["requests", "python-dotenv", "pyjwt"]
     },
     "gemini": {
-      "implementation": "gemini/cisco_scc.js",
+      "implementation": ["gemini/cisco_scc.js", "gemini/cisco_scc_firewall.js"],
       "requirements": ["axios", "dotenv", "jsonwebtoken"]
     }
   },
   "examples": [
     {
       "description": "List all organizations",
+      "module": "cisco_scc",
       "action": "list_organizations"
     },
     {
       "description": "Create new organization",
+      "module": "cisco_scc",
       "action": "create_organization",
       "payload": {
         "name": "Acme Corp",
@@ -83,13 +85,23 @@
       }
     },
     {
-      "description": "Add user to organization",
-      "action": "add_user",
-      "org_id": "org-uuid-here",
-      "payload": {
-        "email": "user@example.com",
-        "role": "admin"
-      }
+      "description": "List all devices in inventory",
+      "module": "cisco_scc_firewall",
+      "region": "us",
+      "action": "list_devices"
+    },
+    {
+      "description": "Get cloud-delivered FMC",
+      "module": "cisco_scc_firewall",
+      "region": "us",
+      "action": "get_cdfmc_manager"
+    },
+    {
+      "description": "List access policies from cdFMC",
+      "module": "cisco_scc_firewall",
+      "region": "us",
+      "action": "get_cdfmc_access_policies",
+      "domain_uid": "e276abec-e0f2-11e3-8169-6d9ed49b625f"
     }
   ]
 }
