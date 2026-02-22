@@ -1,0 +1,72 @@
+{
+  "name": "cisco-meraki",
+  "description": "Manage Cisco Meraki cloud networking - organizations, networks, devices, wireless, switches, firewall, and clients",
+  "version": "1.0.0",
+  "author": "Copilot",
+  "license": "MIT",
+  "repository": "https://github.com/leprachuan/skills.git",
+  "documentation": "https://developer.cisco.com/meraki/api-v1/",
+  "required_config": [
+    "MERAKI_API_KEY"
+  ],
+  "runtimes": {
+    "claude": {
+      "type": "python",
+      "main": "claude/cisco_meraki.py",
+      "class": "MerakiClient",
+      "requires": ["requests", "python-dotenv"]
+    },
+    "copilot": {
+      "type": "python",
+      "main": "copilot/cisco_meraki.py",
+      "class": "MerakiClient",
+      "requires": ["requests", "python-dotenv"]
+    },
+    "gemini": {
+      "type": "javascript",
+      "main": "gemini/cisco_meraki.js",
+      "class": "MerakiClient",
+      "requires": ["axios", "dotenv"]
+    }
+  },
+  "capabilities": {
+    "organizations": {
+      "list": "List all organizations accessible via API key",
+      "get": "Get organization details by ID"
+    },
+    "networks": {
+      "list": "List all networks in an organization",
+      "get": "Get network details by ID"
+    },
+    "devices": {
+      "list": "List all devices in a network",
+      "get": "Get device details by serial",
+      "status": "Get device online/offline status"
+    },
+    "wireless": {
+      "ssids": "List and manage SSIDs (WiFi networks)",
+      "clients": "List connected wireless clients"
+    },
+    "switches": {
+      "ports": "List and manage switch ports",
+      "vlans": "Configure VLAN settings"
+    },
+    "firewall": {
+      "rules": "List and manage firewall rules",
+      "settings": "Get firewall configuration"
+    },
+    "clients": {
+      "list": "List connected clients by network",
+      "get": "Get client details including usage and history"
+    }
+  },
+  "api_endpoints": {
+    "organizations": "/organizations",
+    "networks": "/organizations/{org_id}/networks",
+    "devices": "/networks/{network_id}/devices",
+    "ssids": "/networks/{network_id}/wireless/ssids",
+    "switch_ports": "/networks/{network_id}/devices/{serial}/switch/ports",
+    "firewall": "/networks/{network_id}/firewallRules",
+    "clients": "/networks/{network_id}/clients"
+  }
+}
