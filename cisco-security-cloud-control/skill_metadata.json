@@ -1,0 +1,94 @@
+{
+  "name": "cisco-security-cloud-control",
+  "version": "1.0.0",
+  "description": "Manage Cisco Security Cloud Control resources - organizations, users, subscriptions, roles",
+  "author": "Fosterbot",
+  "license": "MIT",
+  "engines": {
+    "node": ">=16.0.0",
+    "python": ">=3.8"
+  },
+  "api": {
+    "baseUrl": "https://api.sxo.cisco.com/platform/api/v1",
+    "authentication": "OAuth 2.0 Bearer Token",
+    "documentation": "https://developer.cisco.com/docs/security-cloud-control/introduction/"
+  },
+  "parameters": {
+    "action": {
+      "type": "string",
+      "description": "API action to perform",
+      "required": true,
+      "enum": [
+        "list_organizations",
+        "create_organization",
+        "get_organization",
+        "update_organization",
+        "delete_organization",
+        "list_users",
+        "add_user",
+        "remove_user",
+        "assign_role",
+        "list_subscriptions",
+        "get_subscription",
+        "list_roles"
+      ]
+    },
+    "org_id": {
+      "type": "string",
+      "description": "Organization ID (UUID format)",
+      "required": false
+    },
+    "user_id": {
+      "type": "string",
+      "description": "User ID (UUID format)",
+      "required": false
+    },
+    "role_id": {
+      "type": "string",
+      "description": "Role ID",
+      "required": false
+    },
+    "payload": {
+      "type": "object",
+      "description": "Request body payload",
+      "required": false
+    }
+  },
+  "runtimes": {
+    "claude": {
+      "implementation": "claude/cisco_scc.py",
+      "requirements": ["requests", "python-dotenv", "pyjwt"]
+    },
+    "copilot": {
+      "implementation": "copilot/cisco_scc.py",
+      "requirements": ["requests", "python-dotenv", "pyjwt"]
+    },
+    "gemini": {
+      "implementation": "gemini/cisco_scc.js",
+      "requirements": ["axios", "dotenv", "jsonwebtoken"]
+    }
+  },
+  "examples": [
+    {
+      "description": "List all organizations",
+      "action": "list_organizations"
+    },
+    {
+      "description": "Create new organization",
+      "action": "create_organization",
+      "payload": {
+        "name": "Acme Corp",
+        "type": "managed"
+      }
+    },
+    {
+      "description": "Add user to organization",
+      "action": "add_user",
+      "org_id": "org-uuid-here",
+      "payload": {
+        "email": "user@example.com",
+        "role": "admin"
+      }
+    }
+  ]
+}
