@@ -134,5 +134,6 @@ Uses OAuth 2.0 Bearer Token. Credentials managed via:
 ## Support
 
 - API Docs: https://developer.cisco.com/docs/security-cloud-control/
-- Base URL: https://api.sse.cisco.com/platform/api/v1
+- Base URL: https://api.security.cisco.com/v1
+- Endpoint Structure: `/organizations/{orgId}/...`
 - Issues: Check your API credentials in `.env`

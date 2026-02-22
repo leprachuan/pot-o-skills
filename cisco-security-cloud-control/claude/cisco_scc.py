@@ -15,7 +15,8 @@ class CiscoSCCClient:
         if not all([self.api_key_id, self.access_token]):
             raise ValueError("CISCO_API_KEY_ID and CISCO_ACCESS_TOKEN required in .env")
         
-        self.base_url = "https://api.sse.cisco.com/platform/api/v1"
+        self.base_url = "https://api.security.cisco.com/v1"
+        self.org_id = "d1dbb9db-29f4-4547-9de5-3b436015f0f0"  # From token
         self.session = requests.Session()
         self._setup_headers()
     
@@ -56,11 +57,11 @@ class CiscoSCCClient:
     # Organization Operations
     def list_organizations(self):
         """List all organizations"""
-        return self._make_request("GET", "/orgs")
+        return self._make_request("GET", "/organizations")
     
     def get_organization(self, org_id):
         """Get organization details"""
-        return self._make_request("GET", f"/orgs/{org_id}")
+        return self._make_request("GET", f"/organizations/{org_id}")
     
     def create_organization(self, name, org_type="managed", description=None):
         """Create new organization"""
@@ -71,20 +72,20 @@ class CiscoSCCClient:
         if description:
             payload["description"] = description
         
-        return self._make_request("POST", "/orgs", data=payload)
+        return self._make_request("POST", "/organizations", data=payload)
     
     def update_organization(self, org_id, **kwargs):
         """Update organization"""
-        return self._make_request("PUT", f"/orgs/{org_id}", data=kwargs)
+        return self._make_request("PUT", f"/organizations/{org_id}", data=kwargs)
     
     def delete_organization(self, org_id):
         """Delete organization"""
-        return self._make_request("DELETE", f"/orgs/{org_id}")
+        return self._make_request("DELETE", f"/organizations/{org_id}")
     
     # User Management
     def list_users(self, org_id):
         """List users in organization"""
-        return self._make_request("GET", f"/orgs/{org_id}/users")
+        return self._make_request("GET", f"/organizations/{org_id}/users")
     
     def add_user(self, org_id, email, role="user"):
         """Add user to organization"""
@@ -92,33 +93,33 @@ class CiscoSCCClient:
             "email": email,
             "role": role
         }
-        return self._make_request("POST", f"/orgs/{org_id}/users", data=payload)
+        return self._make_request("POST", f"/organizations/{org_id}/users", data=payload)
     
     def remove_user(self, org_id, user_id):
         """Remove user from organization"""
-        return self._make_request("DELETE", f"/orgs/{org_id}/users/{user_id}")
+        return self._make_request("DELETE", f"/organizations/{org_id}/users/{user_id}")
     
     def assign_role(self, org_id, user_id, role_id):
         """Assign role to user"""
         payload = {"role_id": role_id}
-        return self._make_request("PUT", f"/orgs/{org_id}/users/{user_id}/role", data=payload)
+        return self._make_request("PUT", f"/organizations/{org_id}/users/{user_id}/role", data=payload)
     
     # Subscription Management
     def list_subscriptions(self, org_id):
         """List subscriptions for organization"""
-        return self._make_request("GET", f"/orgs/{org_id}/subscriptions")
+        return self._make_request("GET", f"/organizations/{org_id}/subscriptions")
     
     def get_subscription(self, org_id, subscription_id):
         """Get subscription details"""
-        return self._make_request("GET", f"/orgs/{org_id}/subscriptions/{subscription_id}")
+        return self._make_request("GET", f"/organizations/{org_id}/subscriptions/{subscription_id}")
     
     # Role Management
     def list_roles(self, org_id):
         """List available roles in organization"""
-        return self._make_request("GET", f"/orgs/{org_id}/roles")
+        return self._make_request("GET", f"/organizations/{org_id}/roles")
     
     def get_role(self, org_id, role_id):
         """Get role details and permissions"""
-        return self._make_request("GET", f"/orgs/{org_id}/roles/{role_id}")
+        return self._make_request("GET", f"/organizations/{org_id}/roles/{role_id}")
 
 __all__ = ['CiscoSCCClient']
