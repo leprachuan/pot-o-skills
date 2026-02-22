@@ -8,8 +8,12 @@ load_dotenv()
 
 class CiscoSCCFirewallManager:
     def __init__(self, region="us"):
+        # Organization/SCC API token
         self.api_key_id = os.getenv('CISCO_API_KEY_ID')
         self.access_token = os.getenv('CISCO_ACCESS_TOKEN')
+        
+        # cdFMC API token (separate from org token)
+        self.cdfmc_token = os.getenv('CISCO_CDFMC_ACCESS_TOKEN')
         
         if not all([self.api_key_id, self.access_token]):
             raise ValueError("CISCO_API_KEY_ID and CISCO_ACCESS_TOKEN required in .env")
@@ -20,16 +24,25 @@ class CiscoSCCFirewallManager:
         self.session = requests.Session()
         self._setup_headers()
     
-    def _setup_headers(self):
-        """Setup authorization headers"""
+    def _setup_headers(self, use_cdfmc_token=False):
+        """Setup authorization headers - use cdFMC token for FMC endpoints"""
+        token = self.cdfmc_token if use_cdfmc_token and self.cdfmc_token else self.access_token
         self.session.headers.update({
-            "Authorization": f"Bearer {self.access_token}",
+            "Authorization": f"Bearer {token}",
             "Content-Type": "application/json",
             "Accept": "application/json"
         })
     
-    def _make_request(self, method, endpoint, data=None, params=None):
-        """Make HTTP request to Cisco SCC Firewall API"""
+    def _make_request(self, method, endpoint, data=None, params=None, use_cdfmc_token=False):
+        """Make HTTP request to Cisco SCC/cdFMC API
+        
+        Args:
+            use_cdfmc_token: If True, uses cdFMC token instead of org token
+        """
+        # Switch token if this is a cdFMC endpoint
+        if use_cdfmc_token:
+            self._setup_headers(use_cdfmc_token=True)
+        
         url = f"{self.base_url}{endpoint}"
         
         try:
@@ -91,7 +104,7 @@ class CiscoSCCFirewallManager:
         Endpoint: /cdfmc/api/fmc_platform/v1/info/domain
         """
         endpoint = "/cdfmc/api/fmc_platform/v1/info/domain"
-        return self._make_request("GET", endpoint)
+        return self._make_request("GET", endpoint, use_cdfmc_token=True)
     
     
     def list_services(self, limit=50, offset=0):
@@ -104,33 +117,34 @@ class CiscoSCCFirewallManager:
         """Get all access policies from cdFMC
         
         Args:
-            domain_uid: Domain UUID obtained from get_cdfmc_manager()
+            domain_uid: Domain UUID obtained from get_cdfmc_domain()
             limit: Results per page (default 50)
             offset: Pagination offset (default 0)
             
         Endpoint: /cdfmc/api/fmc_config/v1/domain/{domainUUID}/policy/accesspolicies
-        Note: 400 error if domainUUID invalid or org lacks Firewall Manager subscription
         """
         endpoint = f"/cdfmc/api/fmc_config/v1/domain/{domain_uid}/policy/accesspolicies"
         return self._make_request("GET", endpoint, 
-                                params={"limit": limit, "offset": offset})
+                                params={"limit": limit, "offset": offset}, 
+                                use_cdfmc_token=True)
     
     def get_cdfmc_access_policy(self, domain_uid, policy_id):
         """Get specific access policy from cdFMC"""
         endpoint = f"/cdfmc/api/fmc_config/v1/domain/{domain_uid}/policy/accesspolicies/{policy_id}"
-        return self._make_request("GET", endpoint)
+        return self._make_request("GET", endpoint, use_cdfmc_token=True)
     
     def get_cdfmc_access_rules(self, domain_uid, policy_id, expanded=False):
         """Get access rules for a policy in cdFMC"""
         endpoint = f"/cdfmc/api/fmc_config/v1/domain/{domain_uid}/policy/accesspolicies/{policy_id}/accessrules"
         params = {"expanded": "true" if expanded else "false"}
-        return self._make_request("GET", endpoint, params=params)
+        return self._make_request("GET", endpoint, params=params, use_cdfmc_token=True)
     
     def get_cdfmc_network_objects(self, domain_uid, limit=50, offset=0):
         """Get network objects from cdFMC"""
         endpoint = f"/cdfmc/api/fmc_config/v1/domain/{domain_uid}/object/networks"
         return self._make_request("GET", endpoint, 
-                                params={"limit": limit, "offset": offset})
+                                params={"limit": limit, "offset": offset}, 
+                                use_cdfmc_token=True)
     
     # Object Management
     def list_objects(self, object_type=None, limit=50, offset=0):
