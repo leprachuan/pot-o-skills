@@ -1,0 +1,76 @@
+{
+  "name": "skill-security-scanner",
+  "version": "1.0.0",
+  "description": "Scan AI agent skills for security vulnerabilities including prompt injection, credential exposure, malicious code patterns, and data exfiltration risks",
+  "author": "Fosterbot",
+  "license": "MIT",
+  "keywords": ["security", "scanning", "audit", "prompt-injection", "credentials", "vulnerability"],
+  "engines": {
+    "python": ">=3.8"
+  },
+  "required_config": [],
+  "optional_config": [
+    "OPENAI_API_KEY",
+    "ANTHROPIC_API_KEY"
+  ],
+  "parameters": {
+    "action": {
+      "type": "string",
+      "description": "Scan action to perform",
+      "required": true,
+      "enum": [
+        "scan_skill",
+        "scan_directory",
+        "scan_file",
+        "generate_report",
+        "list_rules"
+      ]
+    },
+    "path": {
+      "type": "string",
+      "description": "Path to skill directory or file to scan",
+      "required": false
+    },
+    "severity": {
+      "type": "string",
+      "description": "Minimum severity level to report (critical, high, medium, low, info)",
+      "required": false,
+      "default": "low"
+    },
+    "output_format": {
+      "type": "string",
+      "description": "Output format for findings (text, json, sarif)",
+      "required": false,
+      "default": "text"
+    },
+    "fix": {
+      "type": "boolean",
+      "description": "Auto-fix low-risk issues where safe to do so",
+      "required": false,
+      "default": false
+    }
+  },
+  "runtimes": {
+    "claude": {
+      "type": "python",
+      "main": "claude/skill_scanner.py",
+      "class": "SkillSecurityScanner",
+      "requires": ["pathlib", "re", "json", "hashlib"]
+    },
+    "copilot": {
+      "type": "python",
+      "main": "copilot/skill_scanner.py",
+      "class": "SkillSecurityScanner",
+      "requires": ["pathlib", "re", "json", "hashlib"]
+    },
+    "gemini": {
+      "type": "javascript",
+      "main": "gemini/skill_scanner.js",
+      "class": "SkillSecurityScanner",
+      "requires": []
+    }
+  },
+  "categories": ["security", "devops", "quality"],
+  "tags": ["audit", "sast", "owasp", "prompt-injection", "secrets", "scanning"],
+  "documentation": "https://github.com/leprachuan/pot-o-skills/tree/main/skill-security-scanner"
+}
