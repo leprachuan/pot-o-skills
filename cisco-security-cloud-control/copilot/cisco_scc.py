@@ -7,6 +7,39 @@ from datetime import datetime
 # Load environment variables
 load_dotenv()
 
+def format_as_markdown_table(items, headers, key_mapping):
+    """Convert list of dictionaries to markdown table format.
+    
+    Args:
+        items: List of dictionaries to format
+        headers: List of column header names
+        key_mapping: Dict mapping header names to item keys (e.g., {'Name': 'name', 'ID': 'id'})
+    
+    Returns:
+        String with markdown table
+    """
+    if not items:
+        return "No items found."
+    
+    # Build header row
+    table = "| " + " | ".join(headers) + " |\n"
+    # Build separator row
+    table += "|" + "|".join(["---"] * len(headers)) + "|\n"
+    
+    # Build data rows
+    for idx, item in enumerate(items, 1):
+        row_values = []
+        for header in headers:
+            key = key_mapping.get(header, header.lower())
+            if key == "#":
+                row_values.append(str(idx))
+            else:
+                value = item.get(key, "N/A")
+                row_values.append(str(value))
+        table += "| " + " | ".join(row_values) + " |\n"
+    
+    return table
+
 class CiscoSCCClient:
     def __init__(self):
         self.api_key_id = os.getenv('CISCO_API_KEY_ID')
