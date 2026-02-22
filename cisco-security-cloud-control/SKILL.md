@@ -61,8 +61,10 @@ Uses OAuth 2.0 Bearer Token authentication. Token automatically included in Auth
 ## Base URL
 
 ```
-https://api.sse.cisco.com/platform/api/v1
+https://api.security.cisco.com/v1
 ```
+
+Endpoints use structure: `/organizations/{orgId}/...`
 
 ## Error Handling
 

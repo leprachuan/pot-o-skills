@@ -11,7 +11,8 @@ class CiscoSCCClient {
       throw new Error("CISCO_API_KEY_ID and CISCO_ACCESS_TOKEN required in .env");
     }
     
-    this.baseUrl = "https://api.sse.cisco.com/platform/api/v1";
+    this.baseUrl = "https://api.security.cisco.com/v1";
+    this.orgId = "d1dbb9db-29f4-4547-9de5-3b436015f0f0";
     this.client = axios.create({
       baseURL: this.baseUrl,
       headers: {
@@ -44,11 +45,11 @@ class CiscoSCCClient {
 
   // Organization Operations
   async listOrganizations() {
-    return this.makeRequest("GET", "/orgs");
+    return this.makeRequest("GET", "/organizations");
   }
 
   async getOrganization(orgId) {
-    return this.makeRequest("GET", `/orgs/${orgId}`);
+    return this.makeRequest("GET", `/organizations/${orgId}`);
   }
 
   async createOrganization(name, orgType = "managed", description = null) {
@@ -59,52 +60,57 @@ class CiscoSCCClient {
     if (description) {
       payload.description = description;
     }
-    return this.makeRequest("POST", "/orgs", payload);
+    return this.makeRequest("POST", "/organizations", payload);
   }
 
   async updateOrganization(orgId, updates) {
-    return this.makeRequest("PUT", `/orgs/${orgId}`, updates);
+    return this.makeRequest("PUT", `/organizations/${orgId}`, updates);
   }
 
   async deleteOrganization(orgId) {
-    return this.makeRequest("DELETE", `/orgs/${orgId}`);
+    return this.makeRequest("DELETE", `/organizations/${orgId}`);
+  }
+
+  // Admin Groups
+  async listAdminGroups(orgId) {
+    return this.makeRequest("GET", `/organizations/${orgId}/adminGroups`);
   }
 
   // User Management
   async listUsers(orgId) {
-    return this.makeRequest("GET", `/orgs/${orgId}/users`);
+    return this.makeRequest("GET", `/organizations/${orgId}/users`);
   }
 
   async addUser(orgId, email, role = "user") {
     const payload = { email, role };
-    return this.makeRequest("POST", `/orgs/${orgId}/users`, payload);
+    return this.makeRequest("POST", `/organizations/${orgId}/users`, payload);
   }
 
   async removeUser(orgId, userId) {
-    return this.makeRequest("DELETE", `/orgs/${orgId}/users/${userId}`);
+    return this.makeRequest("DELETE", `/organizations/${orgId}/users/${userId}`);
   }
 
   async assignRole(orgId, userId, roleId) {
     const payload = { role_id: roleId };
-    return this.makeRequest("PUT", `/orgs/${orgId}/users/${userId}/role`, payload);
+    return this.makeRequest("PUT", `/organizations/${orgId}/users/${userId}/role`, payload);
   }
 
   // Subscription Management
   async listSubscriptions(orgId) {
-    return this.makeRequest("GET", `/orgs/${orgId}/subscriptions`);
+    return this.makeRequest("GET", `/organizations/${orgId}/subscriptions`);
   }
 
   async getSubscription(orgId, subscriptionId) {
-    return this.makeRequest("GET", `/orgs/${orgId}/subscriptions/${subscriptionId}`);
+    return this.makeRequest("GET", `/organizations/${orgId}/subscriptions/${subscriptionId}`);
   }
 
   // Role Management
   async listRoles(orgId) {
-    return this.makeRequest("GET", `/orgs/${orgId}/roles`);
+    return this.makeRequest("GET", `/organizations/${orgId}/roles`);
   }
 
   async getRole(orgId, roleId) {
-    return this.makeRequest("GET", `/orgs/${orgId}/roles/${roleId}`);
+    return this.makeRequest("GET", `/organizations/${orgId}/roles/${roleId}`);
   }
 }
 
