@@ -5,6 +5,7 @@ class CiscoSCCFirewallManager {
   constructor(region = "us") {
     this.apiKeyId = process.env.CISCO_API_KEY_ID;
     this.accessToken = process.env.CISCO_ACCESS_TOKEN;
+    this.cdfmcToken = process.env.CISCO_CDFMC_ACCESS_TOKEN;
     
     if (!this.apiKeyId || !this.accessToken) {
       throw new Error("CISCO_API_KEY_ID and CISCO_ACCESS_TOKEN required in .env");
@@ -14,22 +15,28 @@ class CiscoSCCFirewallManager {
     this.baseUrl = `https://api.${region}.security.cisco.com/firewall/v1`;
     this.client = axios.create({
       baseURL: this.baseUrl,
-      headers: {
-        "Authorization": `Bearer ${this.accessToken}`,
-        "Content-Type": "application/json",
-        "Accept": "application/json"
-      },
+      headers: this.getHeaders(),
       timeout: 30000
     });
   }
 
-  async makeRequest(method, endpoint, data = null, params = null) {
+  getHeaders(useCdfmcToken = false) {
+    const token = useCdfmcToken && this.cdfmcToken ? this.cdfmcToken : this.accessToken;
+    return {
+      "Authorization": `Bearer ${token}`,
+      "Content-Type": "application/json",
+      "Accept": "application/json"
+    };
+  }
+
+  async makeRequest(method, endpoint, data = null, params = null, useCdfmcToken = false) {
     try {
       const response = await this.client({
         method,
         url: endpoint,
         data,
-        params
+        params,
+        headers: this.getHeaders(useCdfmcToken)
       });
       return response.data;
     } catch (error) {
@@ -69,7 +76,7 @@ class CiscoSCCFirewallManager {
     // - etc.
     //
     // Endpoint: /cdfmc/api/fmc_platform/v1/info/domain
-    return this.makeRequest("GET", "/cdfmc/api/fmc_platform/v1/info/domain");
+    return this.makeRequest("GET", "/cdfmc/api/fmc_platform/v1/info/domain", null, null, true);
   }
   
 
@@ -81,29 +88,28 @@ class CiscoSCCFirewallManager {
   async getCDFMCAccessPolicies(domainUid, limit = 50, offset = 0) {
     // Get all access policies from cdFMC
     // Args:
-    //   domainUid: Domain UUID obtained from getCDFMCManager()
+    //   domainUid: Domain UUID obtained from getCDFMCDomain()
     //   limit: Results per page (default 50)
     //   offset: Pagination offset (default 0)
     // Endpoint: /cdfmc/api/fmc_config/v1/domain/{domainUUID}/policy/accesspolicies
-    // Note: 400 error if domainUUID invalid or org lacks Firewall Manager subscription
     const endpoint = `/cdfmc/api/fmc_config/v1/domain/${domainUid}/policy/accesspolicies`;
-    return this.makeRequest("GET", endpoint, null, { limit, offset });
+    return this.makeRequest("GET", endpoint, null, { limit, offset }, true);
   }
 
   async getCDFMCAccessPolicy(domainUid, policyId) {
     const endpoint = `/cdfmc/api/fmc_config/v1/domain/${domainUid}/policy/accesspolicies/${policyId}`;
-    return this.makeRequest("GET", endpoint);
+    return this.makeRequest("GET", endpoint, null, null, true);
   }
 
   async getCDFMCAccessRules(domainUid, policyId, expanded = false) {
     const endpoint = `/cdfmc/api/fmc_config/v1/domain/${domainUid}/policy/accesspolicies/${policyId}/accessrules`;
     const params = { expanded: expanded ? "true" : "false" };
-    return this.makeRequest("GET", endpoint, null, params);
+    return this.makeRequest("GET", endpoint, null, params, true);
   }
 
   async getCDFMCNetworkObjects(domainUid, limit = 50, offset = 0) {
     const endpoint = `/cdfmc/api/fmc_config/v1/domain/${domainUid}/object/networks`;
-    return this.makeRequest("GET", endpoint, null, { limit, offset });
+    return this.makeRequest("GET", endpoint, null, { limit, offset }, true);
   }
 
   // Object Management
