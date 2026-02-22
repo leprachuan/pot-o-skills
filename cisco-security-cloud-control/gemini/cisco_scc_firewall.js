@@ -1,6 +1,39 @@
 const axios = require('axios');
 require('dotenv').config();
 
+function formatAsMarkdownTable(items, headers, keyMapping) {
+  /**
+   * Convert list of objects to markdown table format.
+   * 
+   * @param {Array} items - List of objects to format
+   * @param {Array} headers - List of column header names
+   * @param {Object} keyMapping - Maps header names to item keys
+   * @returns {String} Markdown table
+   */
+  if (!items || items.length === 0) {
+    return "No items found.";
+  }
+  
+  // Build header row
+  let table = "| " + headers.join(" | ") + " |\n";
+  // Build separator row
+  table += "|" + headers.map(() => "---").join("|") + "|\n";
+  
+  // Build data rows
+  items.forEach((item, idx) => {
+    const rowValues = headers.map((header) => {
+      const key = keyMapping[header] || header.toLowerCase();
+      if (key === "#") {
+        return String(idx + 1);
+      }
+      return String(item[key] || "N/A");
+    });
+    table += "| " + rowValues.join(" | ") + " |\n";
+  });
+  
+  return table;
+}
+
 class CiscoSCCFirewallManager {
   constructor(region = "us") {
     this.apiKeyId = process.env.CISCO_API_KEY_ID;
