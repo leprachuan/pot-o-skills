@@ -61,7 +61,7 @@ Uses OAuth 2.0 Bearer Token authentication. Token automatically included in Auth
 ## Base URL
 
 ```
-https://api.sxo.cisco.com/platform/api/v1
+https://api.sse.cisco.com/platform/api/v1
 ```
 
 ## Error Handling

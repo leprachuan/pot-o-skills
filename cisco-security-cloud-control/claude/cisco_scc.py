@@ -15,7 +15,7 @@ class CiscoSCCClient:
         if not all([self.api_key_id, self.access_token]):
             raise ValueError("CISCO_API_KEY_ID and CISCO_ACCESS_TOKEN required in .env")
         
-        self.base_url = "https://api.sxo.cisco.com/platform/api/v1"
+        self.base_url = "https://api.sse.cisco.com/platform/api/v1"
         self.session = requests.Session()
         self._setup_headers()
     

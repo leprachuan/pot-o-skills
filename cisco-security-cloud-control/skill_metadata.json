@@ -9,7 +9,7 @@
     "python": ">=3.8"
   },
   "api": {
-    "baseUrl": "https://api.sxo.cisco.com/platform/api/v1",
+    "baseUrl": "https://api.sse.cisco.com/platform/api/v1",
     "authentication": "OAuth 2.0 Bearer Token",
     "documentation": "https://developer.cisco.com/docs/security-cloud-control/introduction/"
   },
