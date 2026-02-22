@@ -59,7 +59,10 @@ class CiscoSCCFirewallManager:
     
     # Inventory Management
     def list_devices(self, limit=50, offset=0):
-        """List all devices in inventory"""
+        """List all devices in inventory
+        
+        Note: Returns 400 if no devices provisioned or requires additional org permissions
+        """
         return self._make_request("GET", "/inventory/devices", 
                                 params={"limit": limit, "offset": offset})
     
@@ -75,7 +78,11 @@ class CiscoSCCFirewallManager:
         return self._make_request("GET", "/inventory/managers", params=params)
     
     def get_cdfmc_manager(self):
-        """Get cloud-delivered FMC manager"""
+        """Get cloud-delivered FMC manager
+        
+        Returns domain UUID and other FMC details needed for policy queries.
+        Endpoint structure: /cdfmc/api/fmc_config/v1/domain/{domainUUID}/...
+        """
         return self._make_request("GET", "/inventory/managers", 
                                 params={"q": "deviceType:CDFMC"})
     
@@ -86,7 +93,16 @@ class CiscoSCCFirewallManager:
     
     # Cloud-delivered FMC Operations
     def get_cdfmc_access_policies(self, domain_uid, limit=50, offset=0):
-        """Get all access policies from cdFMC"""
+        """Get all access policies from cdFMC
+        
+        Args:
+            domain_uid: Domain UUID obtained from get_cdfmc_manager()
+            limit: Results per page (default 50)
+            offset: Pagination offset (default 0)
+            
+        Endpoint: /cdfmc/api/fmc_config/v1/domain/{domainUUID}/policy/accesspolicies
+        Note: 400 error if domainUUID invalid or org lacks Firewall Manager subscription
+        """
         endpoint = f"/cdfmc/api/fmc_config/v1/domain/{domain_uid}/policy/accesspolicies"
         return self._make_request("GET", endpoint, 
                                 params={"limit": limit, "offset": offset})

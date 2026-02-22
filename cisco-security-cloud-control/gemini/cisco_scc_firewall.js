@@ -44,6 +44,7 @@ class CiscoSCCFirewallManager {
 
   // Inventory Management
   async listDevices(limit = 50, offset = 0) {
+    // Note: Returns 400 if no devices provisioned or requires additional org permissions
     return this.makeRequest("GET", "/inventory/devices", null, { limit, offset });
   }
 
@@ -58,6 +59,8 @@ class CiscoSCCFirewallManager {
   }
 
   async getCDFMCManager() {
+    // Returns domain UUID and other FMC details needed for policy queries
+    // Endpoint structure: /cdfmc/api/fmc_config/v1/domain/{domainUUID}/...
     return this.makeRequest("GET", "/inventory/managers", null, { q: "deviceType:CDFMC" });
   }
 
@@ -67,6 +70,13 @@ class CiscoSCCFirewallManager {
 
   // Cloud-delivered FMC Operations
   async getCDFMCAccessPolicies(domainUid, limit = 50, offset = 0) {
+    // Get all access policies from cdFMC
+    // Args:
+    //   domainUid: Domain UUID obtained from getCDFMCManager()
+    //   limit: Results per page (default 50)
+    //   offset: Pagination offset (default 0)
+    // Endpoint: /cdfmc/api/fmc_config/v1/domain/{domainUUID}/policy/accesspolicies
+    // Note: 400 error if domainUUID invalid or org lacks Firewall Manager subscription
     const endpoint = `/cdfmc/api/fmc_config/v1/domain/${domainUid}/policy/accesspolicies`;
     return this.makeRequest("GET", endpoint, null, { limit, offset });
   }
