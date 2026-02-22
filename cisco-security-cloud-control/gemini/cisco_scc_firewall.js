@@ -58,11 +58,20 @@ class CiscoSCCFirewallManager {
     return this.makeRequest("GET", "/inventory/managers", null, params);
   }
 
-  async getCDFMCManager() {
-    // Returns domain UUID and other FMC details needed for policy queries
-    // Endpoint structure: /cdfmc/api/fmc_config/v1/domain/{domainUUID}/...
-    return this.makeRequest("GET", "/inventory/managers", null, { q: "deviceType:CDFMC" });
+  async getCDFMCDomain() {
+    // Get cloud-delivered FMC domain UUID
+    // This endpoint retrieves the domain UUID needed for all cdFMC operations
+    // Must be called first to get domain UUID for other policy/object queries
+    //
+    // Returns domain object with UUID used in:
+    // - /cdfmc/api/fmc_config/v1/domain/{domainUUID}/policy/accesspolicies
+    // - /cdfmc/api/fmc_config/v1/domain/{domainUUID}/object/networks
+    // - etc.
+    //
+    // Endpoint: /cdfmc/api/fmc_platform/v1/info/domain
+    return this.makeRequest("GET", "/cdfmc/api/fmc_platform/v1/info/domain");
   }
+  
 
   async listServices(limit = 50, offset = 0) {
     return this.makeRequest("GET", "/inventory/services", null, { limit, offset });
