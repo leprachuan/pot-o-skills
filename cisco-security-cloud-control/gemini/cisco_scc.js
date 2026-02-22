@@ -11,7 +11,7 @@ class CiscoSCCClient {
       throw new Error("CISCO_API_KEY_ID and CISCO_ACCESS_TOKEN required in .env");
     }
     
-    this.baseUrl = "https://api.sxo.cisco.com/platform/api/v1";
+    this.baseUrl = "https://api.sse.cisco.com/platform/api/v1";
     this.client = axios.create({
       baseURL: this.baseUrl,
       headers: {
