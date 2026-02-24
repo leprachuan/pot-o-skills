@@ -47,10 +47,20 @@ class TaskSchedulerExecutor:
     """Execute scheduled jobs from jobs.json."""
 
     def __init__(self):
-        self.jobs_file = Path("/opt/.task-scheduler/jobs.json")
-        self.logs_dir = Path("/opt/.task-scheduler/logs/")
-        self.results_dir = Path("/opt/.task-scheduler/results/")
-        self.config_file = Path("/opt/agents.json")
+        # Detect repo location dynamically (this file is skills/task-scheduler/scheduler_executor.py)
+        # The actual orchestrator repos are in /opt/n8n-copilot-shim or /opt/n8n-copilot-shim-dev
+        self.repo_root = Path("/opt/n8n-copilot-shim")
+        if not self.repo_root.exists():
+            self.repo_root = Path("/opt/n8n-copilot-shim-dev")
+        
+        # Detect which instance (dev or prod) for scheduler directories
+        is_dev = self.repo_root.name == "n8n-copilot-shim-dev"
+        scheduler_base = Path("/opt/.task-scheduler-dev" if is_dev else "/opt/.task-scheduler")
+        
+        self.jobs_file = scheduler_base / "jobs.json"
+        self.logs_dir = scheduler_base / "logs/"
+        self.results_dir = scheduler_base / "results/"
+        self.config_file = self.repo_root / "agents.json"
 
         self.jobs_file.parent.mkdir(parents=True, exist_ok=True)
         self.logs_dir.mkdir(parents=True, exist_ok=True)
@@ -223,10 +233,8 @@ class TaskSchedulerExecutor:
         }
         model = job.get("model") or _default_models.get(runtime, "sonnet")
 
-        # Use prod agent_manager by default, fallback to dev
-        agent_manager_path = "/opt/n8n-copilot-shim/agent_manager.py"
-        if not Path(agent_manager_path).exists():
-            agent_manager_path = "/opt/n8n-copilot-shim-dev/agent_manager.py"
+        # Use repo_root to find agent_manager.py (already set in __init__)
+        agent_manager_path = self.repo_root / "agent_manager.py"
 
         cmd = [
             "python3",
