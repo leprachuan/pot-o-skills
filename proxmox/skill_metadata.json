@@ -1,0 +1,128 @@
+{
+  "name": "proxmox",
+  "description": "Manage Proxmox VE clusters - nodes, VMs, LXC containers, storage, and community helper scripts. Supports both Proxmox REST API and SSH/CLI access.",
+  "version": "1.0.0",
+  "author": "FosterbotHome",
+  "category": "infrastructure",
+  "is_public": true,
+  "keywords": ["proxmox", "vm", "lxc", "container", "hypervisor", "virtualization", "homelab", "infrastructure", "cluster", "node"],
+  "intents": [
+    "list_nodes", "list_vms", "list_containers", "node_status",
+    "start_vm", "stop_vm", "restart_vm",
+    "start_container", "stop_container", "restart_container",
+    "run_helper_script", "search_helper_scripts",
+    "ssh_command", "api_call",
+    "create_lxc", "create_vm"
+  ],
+  "supported_actions": [
+    "list_nodes",
+    "list_vms",
+    "list_containers",
+    "node_status",
+    "start_vm",
+    "stop_vm",
+    "restart_vm",
+    "start_container",
+    "stop_container",
+    "restart_container",
+    "run_helper_script",
+    "search_helper_scripts",
+    "ssh_command",
+    "api_call",
+    "create_lxc",
+    "create_vm"
+  ],
+  "parameters": {
+    "properties": {
+      "action": {
+        "type": "string",
+        "description": "Action to perform",
+        "required": true,
+        "examples": ["list_nodes", "list_vms", "run_helper_script", "ssh_command"]
+      },
+      "node": {
+        "type": "string",
+        "description": "Target node name or IP (e.g. proxmox4 or 192.168.1.44). Defaults to primary node.",
+        "required": false
+      },
+      "vmid": {
+        "type": "integer",
+        "description": "VM or container ID",
+        "required": false
+      },
+      "script_name": {
+        "type": "string",
+        "description": "Helper script name for run_helper_script (e.g. 'homeassistant', 'docker', 'pihole')",
+        "required": false
+      },
+      "script_type": {
+        "type": "string",
+        "description": "Script type: ct (LXC container) or vm (virtual machine)",
+        "enum": ["ct", "vm", "tools", "misc"],
+        "required": false
+      },
+      "command": {
+        "type": "string",
+        "description": "SSH command to run on the target node (for ssh_command action)",
+        "required": false
+      },
+      "endpoint": {
+        "type": "string",
+        "description": "API endpoint path for api_call (e.g. '/nodes/proxmox4/status')",
+        "required": false
+      },
+      "method": {
+        "type": "string",
+        "description": "HTTP method for api_call",
+        "enum": ["GET", "POST", "PUT", "DELETE"],
+        "required": false
+      },
+      "data": {
+        "type": "object",
+        "description": "Request body data for POST/PUT api_call",
+        "required": false
+      }
+    }
+  },
+  "returns": {
+    "success": {
+      "type": "boolean",
+      "description": "Whether operation succeeded"
+    },
+    "result": {
+      "type": "object",
+      "description": "Operation result data"
+    },
+    "output": {
+      "type": "string",
+      "description": "Text output (for SSH commands)"
+    },
+    "message": {
+      "type": "string",
+      "description": "Status or error message"
+    }
+  },
+  "runtimes": {
+    "claude": {
+      "implementation": "claude/implementation/proxmox_skill.py",
+      "type": "python_class"
+    },
+    "copilot": {
+      "implementation": "copilot/implementation/proxmox_skill.py",
+      "type": "python_cli"
+    },
+    "gemini": {
+      "implementation": "gemini/implementation/proxmox_functions.py",
+      "type": "function_definitions"
+    }
+  },
+  "dependencies": {
+    "python": ["requests", "paramiko", "python-dotenv"],
+    "system": ["ssh"],
+    "config": [".env"]
+  },
+  "config": {
+    "env_file": ".env",
+    "env_example": ".env.example"
+  }
+}
