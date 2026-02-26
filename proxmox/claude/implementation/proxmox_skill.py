@@ -178,11 +178,11 @@ class ProxmoxSkill:
             silent: If True, suppress SSH errors (used during __init__).
         """
         # Parse token_id to extract user@realm and token name
-        raw_id = self.token_id or "root@pam!fosterbot"
+        raw_id = self.token_id or "root@pam!ai-agent"
         if "!" in raw_id:
             user_realm, token_name = raw_id.split("!", 1)
         else:
-            user_realm, token_name = "root@pam", raw_id or "fosterbot"
+            user_realm, token_name = "root@pam", raw_id or "ai-agent"
 
         # Check if token already exists on the node
         check_cmd = (

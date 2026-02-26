@@ -21,13 +21,13 @@ PROXMOX_NODE_NAMES=proxmox4,proxmox5,proxmox7,proxmox10,proxmox11
 PROXMOX_PRIMARY=192.168.1.44
 PROXMOX_SSH_USER=root
 PROXMOX_SSH_KEY=/home/flipkey/.ssh/id_ed25519
-PROXMOX_API_TOKEN_ID=root@pam!fosterbot
+PROXMOX_API_TOKEN_ID=root@pam!ai-agent
 PROXMOX_API_TOKEN_SECRET=your-secret-here
 ```
 
 3. Create an API token in the Proxmox UI:
    - Datacenter → Permissions → API Tokens → Add
-   - User: `root@pam`, Token ID: `fosterbot`
+   - User: `root@pam`, Token ID: any name you like (e.g. `ai-agent`, `homelab-bot`)
    - Uncheck "Privilege Separation" for full access
    - Copy the secret into `.env`
 
