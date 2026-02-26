@@ -149,6 +149,15 @@ FUNCTION_DECLARATIONS = [
             "required": ["script_name"],
         },
     },
+    {
+        "name": "proxmox_setup_api_token",
+        "description": (
+            "Create a Proxmox API token via SSH if one doesn't exist in .env. "
+            "Safe to call at any time — skips creation if a token is already configured. "
+            "Automatically saves the generated token secret to .env."
+        ),
+        "parameters": {"type": "object", "properties": {}},
+    },
 ]
 
 
@@ -178,6 +187,7 @@ def dispatch(function_name: str, args: dict) -> dict:
         "proxmox_run_helper_script": lambda a: _skill.run_helper_script(
             a["script_name"], a.get("script_type", "ct"), a.get("node")
         ),
+        "proxmox_setup_api_token": lambda a: _skill.setup_api_token(),
     }
     fn = fn_map.get(function_name)
     if not fn:

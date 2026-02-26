@@ -12,7 +12,8 @@
     "start_container", "stop_container", "restart_container",
     "run_helper_script", "search_helper_scripts",
     "ssh_command", "api_call",
-    "create_lxc", "create_vm"
+    "create_lxc", "create_vm",
+    "setup_api_token"
   ],
   "supported_actions": [
     "list_nodes",
@@ -30,7 +31,8 @@
     "ssh_command",
     "api_call",
     "create_lxc",
-    "create_vm"
+    "create_vm",
+    "setup_api_token"
   ],
   "parameters": {
     "properties": {

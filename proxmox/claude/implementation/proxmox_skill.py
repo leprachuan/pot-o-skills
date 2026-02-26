@@ -63,6 +63,13 @@ class ProxmoxSkill:
             self.node_map[name] = ip
             self.ip_map[ip] = name
 
+        # Auto-provision API token if secret is missing
+        if not self.token_secret:
+            result = self._provision_api_token(silent=True)
+            if result.get("success"):
+                self.token_secret = result["token_secret"]
+                self.token_id = result["token_id"]
+
     # -------------------------------------------------------------------------
     # Helpers
     # -------------------------------------------------------------------------
@@ -141,6 +148,132 @@ class ProxmoxSkill:
     def _all_nodes(self) -> list[tuple[str, str]]:
         """Return list of (name, ip) for all configured nodes."""
         return list(self.node_map.items())
+
+    def _write_env_value(self, key: str, value: str) -> None:
+        """Update or append a key=value line in the .env file."""
+        if not _ENV_FILE.exists():
+            _ENV_FILE.write_text(f"{key}={value}\n")
+            return
+        lines = _ENV_FILE.read_text().splitlines()
+        found = False
+        new_lines = []
+        for line in lines:
+            stripped = line.strip()
+            if stripped.startswith(f"{key}=") or stripped == key:
+                new_lines.append(f"{key}={value}")
+                found = True
+            else:
+                new_lines.append(line)
+        if not found:
+            new_lines.append(f"{key}={value}")
+        _ENV_FILE.write_text("\n".join(new_lines) + "\n")
+
+    def _provision_api_token(self, silent: bool = False) -> dict:
+        """Create a Proxmox API token via SSH if one doesn't exist in .env.
+
+        Uses `pveum user token add` on the primary node. The generated secret
+        is written back to .env automatically.
+
+        Args:
+            silent: If True, suppress SSH errors (used during __init__).
+        """
+        # Parse token_id to extract user@realm and token name
+        raw_id = self.token_id or "root@pam!fosterbot"
+        if "!" in raw_id:
+            user_realm, token_name = raw_id.split("!", 1)
+        else:
+            user_realm, token_name = "root@pam", raw_id or "fosterbot"
+
+        # Check if token already exists on the node
+        check_cmd = (
+            f"pveum user token list {user_realm} --output-format json 2>/dev/null"
+        )
+        check = self._ssh(self.primary, check_cmd)
+        if check.get("success") and check.get("output"):
+            try:
+                existing = json.loads(check["output"])
+                for t in existing:
+                    if t.get("tokenid") == token_name:
+                        return {
+                            "success": False,
+                            "already_exists": True,
+                            "message": (
+                                f"Token '{token_name}' already exists for {user_realm}. "
+                                "To get the secret, delete it and re-run setup_api_token, "
+                                "or set PROXMOX_API_TOKEN_SECRET in .env manually."
+                            ),
+                            "token_id": f"{user_realm}!{token_name}",
+                        }
+            except (json.JSONDecodeError, TypeError):
+                pass
+
+        # Create the token (--privsep 0 = no privilege separation = full access)
+        create_cmd = (
+            f"pveum user token add {user_realm} {token_name} "
+            f"--privsep 0 --output-format json"
+        )
+        result = self._ssh(self.primary, create_cmd)
+
+        if not result.get("success"):
+            if silent:
+                return {"success": False, "error": result.get("error", result.get("stderr", "SSH failed"))}
+            return {
+                "success": False,
+                "error": result.get("error", result.get("stderr", "SSH command failed")),
+                "node": self.primary,
+                "command": create_cmd,
+            }
+
+        try:
+            data = json.loads(result["output"])
+        except (json.JSONDecodeError, ValueError):
+            return {
+                "success": False,
+                "error": "Could not parse pveum output",
+                "raw_output": result.get("output", ""),
+            }
+
+        secret = data.get("value", "")
+        full_token_id = data.get("full-tokenid", f"{user_realm}!{token_name}")
+
+        if not secret:
+            return {
+                "success": False,
+                "error": "pveum returned no secret value",
+                "raw": data,
+            }
+
+        # Persist to .env
+        self._write_env_value("PROXMOX_API_TOKEN_ID", full_token_id)
+        self._write_env_value("PROXMOX_API_TOKEN_SECRET", secret)
+
+        return {
+            "success": True,
+            "token_id": full_token_id,
+            "token_secret": secret,
+            "node": self.primary,
+            "message": (
+                f"API token '{full_token_id}' created and saved to .env. "
+                "Future API calls will use this token automatically."
+            ),
+        }
+
+    def setup_api_token(self) -> dict:
+        """Public action: create a Proxmox API token via SSH if none exists.
+
+        Safe to call at any time — if a token secret is already configured
+        it reports that and skips creation. If the token exists on the node
+        but isn't in .env, it reports that too (Proxmox only shows the secret
+        at creation time).
+        """
+        if self.token_secret:
+            return {
+                "success": True,
+                "already_configured": True,
+                "message": f"API token already configured: {self.token_id}",
+                "token_id": self.token_id,
+            }
+        return self._provision_api_token(silent=False)
 
     # -------------------------------------------------------------------------
     # Cluster / Node actions
@@ -588,6 +721,8 @@ def main():
         result = skill.search_helper_scripts(args.query)
     elif args.action == "run_helper_script":
         result = skill.run_helper_script(args.script, args.script_type, args.node)
+    elif args.action == "setup_api_token":
+        result = skill.setup_api_token()
     else:
         result = {"error": f"Unknown action: {args.action}"}
 
