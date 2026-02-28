@@ -25,3 +25,5 @@ __pycache__/
 # OS
 .DS_Store
 .env.swp
+*.env.temp
+.env.temp
