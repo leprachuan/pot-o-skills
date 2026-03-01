@@ -96,6 +96,31 @@ class TelegramNotifier:
         self.chat_id = chat_id
         return {"success": True, "message": "Configuration updated"}
     
+    def send_photo(self, file_path: str, caption: Optional[str] = None) -> dict:
+        """Send a photo file via Telegram."""
+        try:
+            import requests
+            url = f"https://api.telegram.org/bot{self.bot_token}/sendPhoto"
+            files = {"photo": open(file_path, "rb")}
+            data = {"chat_id": self.chat_id}
+            if caption:
+                data["caption"] = caption
+                data["parse_mode"] = "Markdown"
+            for attempt in range(self.max_retries):
+                try:
+                    response = requests.post(url, data=data, files=files, timeout=10)
+                    if response.status_code == 200:
+                        msg_id = response.json().get("result", {}).get("message_id")
+                        self._log(f"Sent photo: {file_path} (msg_id: {msg_id})")
+                        return {"success": True, "message": "Photo sent", "result": {"message_id": msg_id}}
+                except Exception as e:
+                    if attempt < self.max_retries - 1:
+                        continue
+                    raise e
+        except Exception as e:
+            self._log(f"Error sending photo: {str(e)}")
+            return {"success": False, "message": str(e)}
+    
     def _log(self, message: str):
         """Log to message history."""
         log_file = self.logs_dir / "messages.log"

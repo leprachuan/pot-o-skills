@@ -1,0 +1,23 @@
+{
+  "name": "mac-control",
+  "title": "mac-control",
+  "description": "Control macOS machines (SSH, AppleScript), read Apple Notes, control browsers, and run automations on registered Macs.",
+  "version": "0.1.0",
+  "runtimes": ["copilot", "claude", "gemini"],
+  "author": "Copilot <copilot@example.com>",
+  "license": "MIT",
+  "entrypoints": {
+    "copilot": "copilot/mac_control.py",
+    "claude": "claude/README.md",
+    "gemini": "gemini/README.md"
+  },
+  "inputs": [
+    {"name": "target_host", "description": "SSH host (user@host) or 'local' for local mac", "required": true},
+    {"name": "command", "description": "Shell command or AppleScript to run", "required": true}
+  ],
+  "outputs": [
+    {"name": "stdout", "description": "Command output"},
+    {"name": "stderr", "description": "Command stderr"},
+    {"name": "exit_code", "description": "Exit code"}
+  ]
+}

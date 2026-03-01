@@ -2,6 +2,7 @@
 """Telegram notify CLI for Copilot."""
 import sys
 import json
+import os
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
@@ -26,6 +27,22 @@ def main():
             result = notifier.get_message_history()
         elif action == "test_connection":
             result = notifier.test_connection()
+        elif action == "maybe_send_screenshot":
+            # If the incoming platform is Telegram (argument or env var), send the given screenshot path (defaults to /tmp/snort_screenshot.png)
+            platform = sys.argv[2] if len(sys.argv) > 2 else os.getenv("INCOMING_PLATFORM")
+            file_path = sys.argv[3] if len(sys.argv) > 3 else "/tmp/snort_screenshot.png"
+            caption = sys.argv[4] if len(sys.argv) > 4 else None
+            if platform and platform.lower() == "telegram":
+                if os.path.exists(file_path):
+                    result = notifier.send_photo(file_path, caption)
+                else:
+                    result = {"success": False, "message": f"Screenshot not found: {file_path}"}
+            else:
+                result = {"success": False, "message": "Incoming platform is not Telegram"}
+        elif action == "send_photo":
+            file_path = sys.argv[2]
+            caption = sys.argv[3] if len(sys.argv) > 3 else None
+            result = notifier.send_photo(file_path, caption)
         elif action == "configure":
             token = sys.argv[2]
             chat_id = sys.argv[3]
