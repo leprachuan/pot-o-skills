@@ -173,8 +173,63 @@ orgs.forEach(org => {
 
 | Method | Description |
 | --- | --- |
-| `list_network_clients(network_id, params)` | List connected clients |
+| `list_network_clients(network_id, params)` | List connected clients (paginated) |
 | `get_client(network_id, client_id)` | Get client details |
+
+## Pagination
+
+The Meraki API uses **cursor-based pagination** for large result sets. Results are paginated by default with **10 items per page**.
+
+### Important: Always Handle Pagination
+
+When querying endpoints that return many results (devices, clients, ports, rules), you **must** fetch all pages to get complete data.
+
+**Default (incomplete):**
+```python
+# ❌ Only gets first 10 clients
+clients = client.list_network_clients(network_id)
+```
+
+**Correct (complete):**
+```python
+# ✅ Gets ALL clients across all pages
+import requests
+
+api_key = "your_api_key"
+headers = {'X-Cisco-Meraki-API-Key': api_key}
+
+all_clients = []
+url = f"https://api.meraki.com/api/v1/networks/{network_id}/clients"
+
+while url:
+    resp = requests.get(url, headers=headers, params={'perPage': 100})
+    all_clients.extend(resp.json())
+    
+    # Check Link header for next page
+    link_header = resp.headers.get('Link', '')
+    url = None
+    if 'rel=next' in link_header:
+        for part in link_header.split(', '):
+            if 'rel=next' in part:
+                url = part.split(';')[0].strip('<>')
+                break
+```
+
+### Key Points
+
+- **perPage parameter**: Use `perPage=100` to reduce pagination calls (default: 10)
+- **Link header**: API returns pagination info in the `Link` response header
+- **rel=next**: Indicates there are more pages available
+- **Large networks**: Networks with 50+ devices/clients **always** require pagination
+- **Incomplete data risk**: Querying only first page will miss results silently
+
+### Affected Endpoints
+
+These endpoints return paginated results:
+- `list_network_clients()` - Often 50-100+ clients
+- `list_devices()` - May return multiple pages in large networks
+- `list_switch_ports()` - Depends on switch port count
+- `list_firewall_rules()` - May paginate in complex policies
 
 ## Device Types
 
