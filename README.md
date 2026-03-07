@@ -4,7 +4,7 @@ A collection of production-ready API skills for **Wee-Orchestrator**, enabling m
 
 ## Overview
 
-pot-o-skills provides comprehensive REST API access to enterprise platforms, enabling automation, monitoring, and management workflows across your infrastructure. Each skill is implemented across all three supported runtimes for maximum flexibility.
+pot-o-skills provides comprehensive automation skills for enterprise platforms and agent UX workflows, enabling management, monitoring, visualization, and orchestration across your infrastructure. Each skill is implemented across all three supported runtimes for maximum flexibility.
 
 ## Available Skills
 
@@ -12,6 +12,20 @@ pot-o-skills provides comprehensive REST API access to enterprise platforms, ena
 |-------|---------|--------|
 | **[Cisco Meraki](./cisco-meraki/)** | Cloud networking, WiFi, switches, firewalls, device management | ✅ Production Ready |
 | **[Cisco Security Cloud Control](./cisco-security-cloud-control/)** | Organization management, firewall policies, threat detection | ✅ Production Ready |
+| **[Live Canvas](./live-canvas/)** | Interactive visual canvas for progress boards, dashboards, forms, and plan approval flows | 🆕 Released on `main` (`v1.0.0`) |
+
+## Canvas Release Information
+
+The **Live Canvas** skill is now part of the current `main` branch release stream for pot-o-skills.
+
+- **Skill:** [`live-canvas`](./live-canvas/)
+- **Current documented version:** `v1.0.0`
+- **Initial release commit:** `972f6b2` — `feat: add live-canvas skill with A2UI-inspired canvas server`
+- **Post-release fixes already included on `main`:**
+  - `c712c20` — bind canvas server to specific interfaces via `canvas_config.json`
+  - `3b5a1fc` — fix Mermaid re-rendering against stale DOM content
+
+See [`live-canvas/SKILL.md`](./live-canvas/SKILL.md) for the full canvas feature set, usage patterns, and runtime details.
 
 ## Installation
 
@@ -42,11 +56,13 @@ Link individual skills into your Wee-Orchestrator's skill directory:
 cd /opt/n8n-copilot-shim-dev/.github/skills
 ln -s /opt/pot-o-skills/cisco-meraki
 ln -s /opt/pot-o-skills/cisco-security-cloud-control
+ln -s /opt/pot-o-skills/live-canvas
 
 # For production (only when deploying)
 cd /opt/n8n-copilot-shim/.github/skills
 ln -s /opt/pot-o-skills/cisco-meraki
 ln -s /opt/pot-o-skills/cisco-security-cloud-control
+ln -s /opt/pot-o-skills/live-canvas
 ```
 
 ### 3. Configure Credentials
@@ -92,6 +108,22 @@ Access the full documentation and examples in [`cisco-security-cloud-control/REA
 - Cloud Delivered Firewall Manager (cdFMC)
 - Access control policies
 - Threat defense rules
+
+### 🍀 Live Canvas
+**Interactive visual workspace for agents that need live progress, dashboards, forms, or approval flows.**
+
+Access the full documentation and examples in [`live-canvas/SKILL.md`](./live-canvas/SKILL.md)
+
+**Release Status:**
+- `v1.0.0` available on `main`
+- Initial release plus interface-binding and Mermaid rendering fixes are already included
+
+**Key Features:**
+- Live progress boards for deploys, installs, and batch jobs
+- Data dashboards with metrics, charts, and tables
+- Dynamic forms for structured user input
+- Plan approval views with Mermaid flowcharts and action buttons
+- Cross-runtime support for Claude, Copilot CLI, and Gemini
 
 ## Runtime Support
 
@@ -144,14 +176,22 @@ pot-o-skills/
 │   ├── copilot/                           # Copilot CLI Python implementation
 │   └── gemini/                            # Gemini JavaScript implementation
 │
-└── cisco-security-cloud-control/
-    ├── README.md                          # Skill documentation
-    ├── SKILL.md                           # Skill definition
-    ├── .env.example                       # SCC & cdFMC token templates
-    ├── skill_metadata.json                # Capability metadata
+├── cisco-security-cloud-control/
+│   ├── README.md                          # Skill documentation
+│   ├── SKILL.md                           # Skill definition
+│   ├── .env.example                       # SCC & cdFMC token templates
+│   ├── skill_metadata.json                # Capability metadata
+│   ├── claude/                            # Claude Python implementation
+│   ├── copilot/                           # Copilot CLI Python implementation
+│   └── gemini/                            # Gemini JavaScript implementation
+│
+└── live-canvas/
+    ├── SKILL.md                           # Canvas skill documentation
+    ├── skill_metadata.json                # Canvas capability metadata
     ├── claude/                            # Claude Python implementation
     ├── copilot/                           # Copilot CLI Python implementation
-    └── gemini/                            # Gemini JavaScript implementation
+    ├── gemini/                            # Gemini JavaScript implementation
+    └── references/                        # Templates and component docs
 ```
 
 ## License
