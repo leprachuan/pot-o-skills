@@ -38,9 +38,12 @@ Schedule and manage agent tasks with natural language timing. Create jobs that r
 | "every day at 9am" | Daily at 09:00 |
 | "every weekday at 3pm" | Mon-Fri at 15:00 |
 | "every Monday at 8am" | Weekly Monday 08:00 |
-| "every 6 hours" | Repeat every 360 minutes |
+| "every 6 hours" | Repeat every 6 hours |
+| "every 1 minute" | Repeat every 60 seconds |
 | "tomorrow at 2:30pm" | Single run tomorrow |
 | "in 30 minutes" | Single run 30 min from now |
+
+> ⚠️ **Minimum resolution: 1 minute.** Do not schedule jobs with `every N second(s)` — the scheduler parser does not support sub-minute intervals and will disable the job after the first run.
 
 ## Features
 

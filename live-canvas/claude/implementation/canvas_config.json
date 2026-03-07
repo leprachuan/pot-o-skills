@@ -1,0 +1,7 @@
+{
+  "bind_hosts": [
+    "127.0.0.1",
+    "100.124.186.75"
+  ],
+  "_comment": "Add or remove hosts to control which interfaces the canvas server binds to. 127.0.0.1 = localhost only. 100.124.186.75 = lepbuntu Tailscale IP."
+}
