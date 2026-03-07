@@ -9,6 +9,9 @@
 *.crt
 secrets.json
 
+# Generated TLS assets for live-canvas
+live-canvas/claude/implementation/certs/
+
 # Node/Python caches
 node_modules/
 __pycache__/
