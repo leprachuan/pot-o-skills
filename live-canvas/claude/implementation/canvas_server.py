@@ -196,12 +196,31 @@ async def _inactivity_monitor(stop_event: asyncio.Event):
                 stop_event.set()
 
 
+def _load_hosts() -> list[str]:
+    """Load bind hosts from canvas_config.json, defaulting to localhost only."""
+    config_path = Path(__file__).parent / "canvas_config.json"
+    if config_path.exists():
+        try:
+            cfg = json.loads(config_path.read_text())
+            hosts = cfg.get("bind_hosts", ["127.0.0.1"])
+            return hosts if hosts else ["127.0.0.1"]
+        except Exception:
+            pass
+    return ["127.0.0.1"]
+
+
 async def main():
+    import contextlib
     stop_event = asyncio.Event()
     asyncio.create_task(_inactivity_monitor(stop_event))
 
-    async with serve(handler, "0.0.0.0", PORT, process_request=process_request):
-        print(f"Canvas server running on http://localhost:{PORT}", flush=True)
+    hosts = _load_hosts()
+    async with contextlib.AsyncExitStack() as stack:
+        for host in hosts:
+            await stack.enter_async_context(
+                serve(handler, host, PORT, process_request=process_request)
+            )
+            print(f"Canvas server listening on http://{host}:{PORT}", flush=True)
         await stop_event.wait()
 
     print("Canvas server stopped (inactivity timeout).", flush=True)
