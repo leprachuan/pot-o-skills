@@ -575,7 +575,7 @@ function _renderFlowchart(comp) {
 
   const mermaidDiv = document.createElement('div');
   mermaidDiv.className = 'mermaid-src';
-  mermaidDiv.textContent = comp.content || 'flowchart TD\n  A[No content]';
+  mermaidDiv.dataset.mermaidSrc = comp.content || 'flowchart TD\n  A[No content]';
   wrap.appendChild(mermaidDiv);
 
   // Render mermaid async
@@ -606,10 +606,11 @@ function _renderCode(comp) {
 
 // ── Mermaid renderer ──────────────────────────────────────────────────────────
 async function renderMermaid(el) {
-  const src = el.textContent.trim();
+  const src = (el.dataset.mermaidSrc || el.textContent || '').trim();
   if (!src) return;
+  el.innerHTML = '';
   try {
-    const id = 'mermaid-' + Math.random().toString(36).slice(2);
+    const id = 'mermaid-' + Date.now() + '-' + Math.random().toString(36).slice(2);
     const { svg } = await mermaid.render(id, src);
     el.innerHTML = svg;
   } catch (e) {
