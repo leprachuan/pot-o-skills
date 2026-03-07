@@ -1,0 +1,97 @@
+{
+  "name": "live-canvas",
+  "description": "Live visual canvas for agents — renders interactive browser panels (progress boards, dashboards, forms, plan diagrams) that update in real time via WebSocket. Users can click buttons and submit forms; the agent receives actions. Auto-starts a local HTTP+WS server on port 18793.",
+  "version": "1.0.0",
+  "author": "FosterbotHome",
+  "category": "visualization",
+  "is_public": true,
+  "keywords": ["canvas", "visual", "ui", "dashboard", "progress", "form", "plan", "chart", "board", "task", "deploy", "config", "interactive", "websocket", "realtime"],
+  "intents": ["render_canvas", "show_progress", "collect_config", "show_dashboard", "get_approval", "wait_for_action"],
+  "supported_actions": [
+    "render",
+    "render_template",
+    "update",
+    "clear",
+    "open",
+    "wait_for_action"
+  ],
+  "parameters": {
+    "properties": {
+      "action": {
+        "type": "string",
+        "description": "Action to perform",
+        "required": true,
+        "examples": ["render", "render_template", "update", "clear", "open", "wait_for_action"]
+      },
+      "session_id": {
+        "type": "string",
+        "description": "Session ID (auto-generated UUID if not provided)",
+        "required": false
+      },
+      "components": {
+        "type": "array",
+        "description": "JSON component tree (for render action)",
+        "required": false
+      },
+      "template_name": {
+        "type": "string",
+        "description": "Template name: progress_board, data_dashboard, config_form, or plan_view",
+        "required": false
+      },
+      "template_data": {
+        "type": "object",
+        "description": "Data to populate the template",
+        "required": false
+      },
+      "node_id": {
+        "type": "string",
+        "description": "Component node ID for partial updates",
+        "required": false
+      },
+      "changes": {
+        "type": "object",
+        "description": "Dict of property changes to apply to a node",
+        "required": false
+      },
+      "timeout": {
+        "type": "integer",
+        "description": "Seconds to wait for user action (default 60)",
+        "required": false
+      }
+    }
+  },
+  "returns": {
+    "action": {
+      "type": "object",
+      "description": "Action from user: {type, action_id, data, session_id, timestamp}"
+    },
+    "status": {
+      "type": "string",
+      "description": "ok or error"
+    }
+  },
+  "runtimes": {
+    "claude": {
+      "implementation": "claude/implementation/canvas.py",
+      "type": "python_class"
+    },
+    "copilot": {
+      "implementation": "copilot/implementation/canvas_cli.py",
+      "type": "python_cli"
+    },
+    "gemini": {
+      "implementation": "gemini/implementation/canvas_functions.py",
+      "type": "function_definitions"
+    }
+  },
+  "dependencies": {
+    "python": ["websockets"],
+    "system": ["xdg-open"]
+  },
+  "server": {
+    "port": 18793,
+    "auto_start": true,
+    "auto_stop_minutes": 30,
+    "assets": "assets/canvas-viewer/"
+  }
+}
