@@ -1,0 +1,22 @@
+{
+  "name": "price-monitor",
+  "type": "url_comparison",
+  "url": "https://api.example.com/products/PRODUCT_ID/price",
+  "check_interval": 600,
+  "method": "GET",
+  "headers": {
+    "Accept": "application/json"
+  },
+  "condition": "value_exceeds",
+  "trigger_field": "price",
+  "threshold": 50.00,
+  "comparator": "lt",
+  "trigger_mode": "on_change",
+  "enabled": true,
+  "on_trigger": {
+    "method": "background_task",
+    "agent": "fosterbot",
+    "timeout": 300,
+    "prompt_template": "Price drop alert! Product price is now {{extracted_value}} (threshold was $50.00).\n\nURL: {{watcher_url}}\n\nPlease notify the user about this price drop."
+  }
+}

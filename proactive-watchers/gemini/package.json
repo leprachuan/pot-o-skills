@@ -1,0 +1,16 @@
+{
+  "name": "proactive-watchers-gemini",
+  "version": "1.0.0",
+  "description": "Proactive Watchers - Gemini/Node.js runtime for URL/API monitoring",
+  "main": "proactive_watchers.js",
+  "bin": {
+    "proactive-watchers": "./proactive_watchers.js"
+  },
+  "scripts": {
+    "start": "node proactive_watchers.js start --watcher all",
+    "list": "node proactive_watchers.js list",
+    "test": "node proactive_watchers.js test"
+  },
+  "keywords": ["watcher", "monitor", "polling", "api", "automation"],
+  "license": "MIT"
+}

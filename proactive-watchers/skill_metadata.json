@@ -1,0 +1,81 @@
+{
+  "name": "proactive-watchers",
+  "description": "Monitor URLs and APIs, trigger AI actions on changes",
+  "version": "1.0.0",
+  "author": "Fosterbot",
+  "license": "MIT",
+  "category": "monitoring",
+  "is_public": true,
+  "keywords": ["watcher", "monitor", "polling", "api", "url", "automation", "alerting"],
+  "intents": ["create_watcher", "list_watchers", "start_watcher", "stop_watcher", "test_watcher", "delete_watcher", "view_history"],
+  "triggers": ["watcher", "monitor", "poll", "watch", "track", "alert"],
+  "supported_actions": [
+    "create_watcher",
+    "list_watchers",
+    "start_watcher",
+    "stop_watcher",
+    "test_watcher",
+    "delete_watcher",
+    "view_history",
+    "enable_watcher",
+    "disable_watcher"
+  ],
+  "capabilities": [
+    "url_polling",
+    "api_monitoring",
+    "condition_evaluation",
+    "ai_trigger",
+    "event_logging",
+    "state_persistence",
+    "exponential_backoff",
+    "concurrent_watchers",
+    "template_substitution"
+  ],
+  "parameters": {
+    "properties": {
+      "action": {
+        "type": "string",
+        "description": "Action to perform (create, list, start, stop, test, delete, history)",
+        "required": true
+      },
+      "watcher_name": {
+        "type": "string",
+        "description": "Name of the watcher to operate on",
+        "required": false
+      },
+      "config": {
+        "type": "object",
+        "description": "Watcher configuration for create action",
+        "required": false
+      }
+    }
+  },
+  "runtimes": {
+    "claude": {
+      "implementation": "claude/proactive_watchers.py",
+      "type": "python_cli",
+      "requires": ["requests"]
+    },
+    "copilot": {
+      "implementation": "copilot/proactive_watchers.py",
+      "type": "python_cli",
+      "requires": ["requests"]
+    },
+    "gemini": {
+      "implementation": "gemini/proactive_watchers.js",
+      "type": "node_cli"
+    }
+  },
+  "dependencies": {
+    "python": [],
+    "system": ["curl"]
+  },
+  "storage": {
+    "directory": "~/.proactive-watchers",
+    "files": {
+      "watchers.json": "Active watcher definitions",
+      "history/*.log": "Event history per watcher",
+      "history/*_state.json": "Last known state per watcher"
+    }
+  }
+}

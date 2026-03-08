@@ -1,0 +1,20 @@
+{
+  "name": "github-releases",
+  "type": "url_field_change",
+  "url": "https://api.github.com/repos/OWNER/REPO/releases/latest",
+  "check_interval": 300,
+  "method": "GET",
+  "headers": {
+    "Accept": "application/vnd.github+json",
+    "User-Agent": "proactive-watchers/1.0"
+  },
+  "condition": "value_changed",
+  "trigger_field": "tag_name",
+  "enabled": true,
+  "on_trigger": {
+    "method": "background_task",
+    "agent": "fosterbot",
+    "timeout": 600,
+    "prompt_template": "New GitHub release detected for {{watcher_url}}.\n\nRelease tag: {{response_data.tag_name}}\nRelease name: {{response_data.name}}\n\nPlease summarize the release notes and notify the team."
+  }
+}

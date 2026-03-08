@@ -1,0 +1,21 @@
+{
+  "name": "api-health",
+  "type": "url_field_change",
+  "url": "https://api.example.com/health",
+  "check_interval": 120,
+  "method": "GET",
+  "headers": {
+    "Accept": "application/json"
+  },
+  "condition": "text_contains",
+  "trigger_field": "status",
+  "search_text": "degraded",
+  "trigger_on": "found",
+  "enabled": true,
+  "on_trigger": {
+    "method": "background_task",
+    "agent": "fosterbot",
+    "timeout": 600,
+    "prompt_template": "API Health degradation detected!\n\nEndpoint: {{watcher_url}}\nStatus field: {{extracted_value}}\nCondition: '{{watcher_name}}' found 'degraded' in response.\n\nPlease run diagnostics and check:\n1. Response times\n2. Error rates\n3. Dependent services\n4. Recent deployments"
+  }
+}
