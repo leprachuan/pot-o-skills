@@ -7,6 +7,9 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked@13/marked.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"></script>
   <style>
     :root {
       --accent:        #3ecf8e;
@@ -63,9 +66,39 @@
     #header .title { font-size: 14px; font-weight: 600; color: var(--text-primary); }
     #header .session-id { font-size: 11px; color: var(--text-muted); font-family: var(--font-mono); }
 
+    #header-right {
+      margin-left: auto; display: flex; align-items: center; gap: 10px;
+    }
     #ws-status {
-      margin-left: auto; display: flex; align-items: center; gap: 6px;
+      display: flex; align-items: center; gap: 6px;
       font-size: 11px; color: var(--text-muted);
+    }
+
+    /* ── Export buttons ── */
+    .export-btn {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 5px 11px;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.13);
+      border-radius: var(--radius-xs);
+      color: var(--text-muted);
+      font-family: var(--font); font-size: 11px; font-weight: 600;
+      cursor: pointer; transition: all var(--transition);
+      white-space: nowrap;
+    }
+    .export-btn:hover {
+      background: rgba(255,255,255,0.13);
+      color: var(--text-primary);
+      border-color: rgba(255,255,255,0.25);
+    }
+    .export-btn:active { transform: scale(0.96); }
+
+    /* ── Print / PDF styles ── */
+    @media print {
+      .bg-blob, #header { display: none !important; }
+      html, body { background: #0a0e1a !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      #canvas-root { padding: 16px !important; }
+      #app { min-height: unset; }
     }
     .ws-dot {
       width: 7px; height: 7px; border-radius: 50%;
@@ -221,9 +254,13 @@
         <div class="title">Live Canvas</div>
         <div class="session-id" id="session-label">Connecting…</div>
       </div>
-      <div id="ws-status">
-        <div class="ws-dot" id="ws-dot"></div>
-        <span id="ws-label">Disconnected</span>
+      <div id="header-right">
+        <button class="export-btn" onclick="exportHTML()" title="Save page as HTML file">⬇ HTML</button>
+        <button class="export-btn" onclick="exportPDF()"  title="Save page as PDF">⬇ PDF</button>
+        <div id="ws-status">
+          <div class="ws-dot" id="ws-dot"></div>
+          <span id="ws-label">Disconnected</span>
+        </div>
       </div>
     </div>
 
@@ -245,7 +282,8 @@
     document.getElementById('session-label').textContent = `Session: ${SESSION_ID}`;
     document.title = `Live Canvas — ${SESSION_ID} 🍀`;
 
-    const WS_URL = `ws://${location.hostname}:${location.port || 18793}/ws?session=${SESSION_ID}`;
+    const wsProto = location.protocol === 'https:' ? 'wss' : 'ws';
+    const WS_URL = `${wsProto}://${location.hostname}:${location.port || 18793}/ws?session=${SESSION_ID}`;
     const root = document.getElementById('canvas-root');
     const emptyState = document.getElementById('empty-state');
     const wsDot = document.getElementById('ws-dot');
@@ -324,6 +362,47 @@
         tertiaryColor: '#1a1a2e',
       },
     });
+
+    // ── Export: HTML ───────────────────────────────────────────────────────
+    function exportHTML() {
+      // Collect all inline <style> blocks
+      const styles = Array.from(document.querySelectorAll('style'))
+        .map(s => s.textContent).join('\n');
+
+      const content = document.getElementById('canvas-root').innerHTML;
+      const ts = new Date().toISOString().slice(0,19).replace(/[:T]/g, '-');
+      const title = `Canvas — ${SESSION_ID} — ${ts}`;
+
+      const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <title>${title}</title>
+  <script src="https://cdn.jsdelivr.net/npm/marked@13/marked.min.js"><\/script>
+  <script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"><\/script>
+  <style>
+    ${styles}
+    html, body { background: #0a0e1a; min-height: 100%; }
+    #canvas-root { padding: 24px; max-width: 960px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
+  </style>
+</head>
+<body>
+  <div id="canvas-root">${content}</div>
+</body>
+</html>`;
+
+      const blob = new Blob([html], { type: 'text/html' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `canvas-${SESSION_ID}-${ts}.html`;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+    }
+
+    // ── Export: PDF ────────────────────────────────────────────────────────
+    function exportPDF() {
+      window.print();
+    }
 
     connect();
   </script>
