@@ -1,0 +1,732 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>3D Modeling Canvas 🧊</title>
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three":          "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+      "three/addons/":  "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+    }
+  }
+  </script>
+
+  <style>
+    :root {
+      --accent:         #10b981;
+      --accent-hover:   #059669;
+      --accent-glow:    rgba(16,185,129,0.3);
+      --gold:           #f5c542;
+      --danger:         #ff5f6d;
+      --danger-hover:   #e04a58;
+      --info:           #3b82f6;
+      --text-primary:   rgba(255,255,255,0.92);
+      --text-secondary: rgba(255,255,255,0.55);
+      --text-muted:     rgba(255,255,255,0.35);
+      --glass-bg:       rgba(255,255,255,0.06);
+      --glass-border:   rgba(255,255,255,0.12);
+      --glass-shadow:   0 8px 32px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.08);
+      --glass-blur:     blur(24px) saturate(180%);
+      --radius:         14px;
+      --radius-sm:      8px;
+      --font:           -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      --font-mono:      "SF Mono","Fira Code","Cascadia Code",monospace;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; background: #0a0e1a; color: var(--text-primary); font-family: var(--font); overflow: hidden; }
+
+    /* Ambient blobs */
+    .bg-blob { position: fixed; border-radius: 50%; filter: blur(100px); opacity: 0.45; pointer-events: none; z-index: 0; }
+    .blob-1  { width: 600px; height: 600px; top: -10%; left: -5%;   background: radial-gradient(circle, #0d4a2a 0%, transparent 70%); }
+    .blob-2  { width: 500px; height: 500px; bottom: -10%; right: -5%; background: radial-gradient(circle, #1a2a6c 0%, transparent 70%); }
+    .blob-3  { width: 350px; height: 350px; top: 40%; right: 30%;   background: radial-gradient(circle, #4a1580 0%, transparent 70%); }
+
+    #app { position: relative; z-index: 1; height: 100vh; display: flex; flex-direction: column; }
+
+    /* ── Header ── */
+    #header {
+      display: flex; align-items: center; gap: 12px;
+      padding: 12px 20px;
+      background: var(--glass-bg);
+      backdrop-filter: var(--glass-blur);
+      border-bottom: 1px solid var(--glass-border);
+      flex-shrink: 0;
+    }
+    #header .logo { font-size: 18px; }
+    #header .title { font-size: 14px; font-weight: 600; color: var(--text-primary); }
+    #header .session-id { font-size: 10px; color: var(--text-muted); font-family: var(--font-mono); }
+    #ws-status { margin-left: auto; display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text-muted); }
+    .ws-dot { width: 7px; height: 7px; border-radius: 50%; background: #555; transition: background 0.3s; }
+    .ws-dot.connected { background: var(--accent); animation: breathe 2s ease infinite; }
+    .ws-dot.error     { background: var(--danger); }
+    @keyframes breathe { 0%,100%{opacity:1} 50%{opacity:.45} }
+
+    /* ── Main layout ── */
+    #main { display: flex; flex: 1; min-height: 0; }
+
+    /* ── 3D Viewport ── */
+    #viewport {
+      flex: 1;
+      position: relative;
+      background: #070b15;
+      overflow: hidden;
+    }
+    #viewport canvas { display: block; width: 100% !important; height: 100% !important; }
+
+    /* Viewport overlay controls */
+    #viewport-controls {
+      position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%);
+      display: flex; gap: 8px;
+      background: var(--glass-bg);
+      backdrop-filter: var(--glass-blur);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius);
+      padding: 8px 12px;
+    }
+
+    /* ── Side panel ── */
+    #side-panel {
+      width: 240px;
+      background: var(--glass-bg);
+      backdrop-filter: var(--glass-blur);
+      border-left: 1px solid var(--glass-border);
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      overflow-y: auto;
+      flex-shrink: 0;
+    }
+    #side-panel::-webkit-scrollbar { width: 4px; }
+    #side-panel::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 2px; }
+
+    .panel-section { border-bottom: 1px solid var(--glass-border); padding: 14px 16px; }
+    .panel-section h3 { font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 10px; }
+
+    /* ── Buttons ── */
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+      padding: 8px 14px; border: none; border-radius: var(--radius-sm);
+      font-size: 12px; font-weight: 500; cursor: pointer;
+      transition: all 0.15s ease; white-space: nowrap; width: 100%;
+    }
+    .btn-primary  { background: var(--accent); color: #fff; }
+    .btn-primary:hover  { background: var(--accent-hover); box-shadow: 0 0 12px var(--accent-glow); }
+    .btn-ghost    { background: rgba(255,255,255,0.07); color: var(--text-primary); border: 1px solid var(--glass-border); }
+    .btn-ghost:hover    { background: rgba(255,255,255,0.12); }
+    .btn-info     { background: var(--info); color: #fff; }
+    .btn-info:hover     { background: #2563eb; }
+    .btn-gold     { background: var(--gold); color: #111; }
+    .btn-gold:hover     { background: #e0b030; }
+    .btn-danger   { background: var(--danger); color: #fff; }
+    .btn-danger:hover   { background: var(--danger-hover); }
+
+    .btn-row { display: flex; flex-direction: column; gap: 6px; }
+
+    /* ── Object list ── */
+    #object-list { list-style: none; display: flex; flex-direction: column; gap: 4px; }
+    #object-list li {
+      padding: 6px 8px; border-radius: 6px;
+      background: rgba(255,255,255,0.04);
+      font-size: 11px; color: var(--text-secondary);
+      display: flex; align-items: center; gap: 6px;
+      cursor: default;
+    }
+    #object-list li .type-dot {
+      width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+    }
+    #object-list li:empty { display: none; }
+    #obj-count { font-size: 11px; color: var(--text-muted); margin-bottom: 6px; }
+
+    /* ── Info card ── */
+    .info-row { display: flex; justify-content: space-between; font-size: 11px; color: var(--text-secondary); margin-bottom: 4px; }
+    .info-row span:first-child { color: var(--text-muted); }
+
+    /* ── Empty state ── */
+    #empty-state {
+      position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+      text-align: center; pointer-events: none; opacity: 0;
+      transition: opacity 0.3s;
+    }
+    #empty-state.visible { opacity: 1; }
+    #empty-state .icon { font-size: 48px; margin-bottom: 12px; }
+    #empty-state p { font-size: 13px; color: var(--text-muted); }
+
+    /* ── Toast ── */
+    #toast {
+      position: fixed; bottom: 24px; right: 24px;
+      background: rgba(16,185,129,0.9); color: #fff;
+      padding: 10px 16px; border-radius: var(--radius-sm);
+      font-size: 12px; font-weight: 500;
+      opacity: 0; transform: translateY(8px);
+      transition: all 0.25s ease;
+      pointer-events: none; z-index: 100;
+    }
+    #toast.show { opacity: 1; transform: translateY(0); }
+
+    /* ── Viewport hints ── */
+    #hint {
+      position: absolute; top: 12px; left: 12px;
+      font-size: 10px; color: var(--text-muted);
+      pointer-events: none;
+      line-height: 1.7;
+    }
+  </style>
+</head>
+<body>
+  <div class="bg-blob blob-1"></div>
+  <div class="bg-blob blob-2"></div>
+  <div class="bg-blob blob-3"></div>
+
+  <div id="app">
+    <div id="header">
+      <span class="logo">🧊</span>
+      <div>
+        <div class="title" id="scene-title">3D Modeling Canvas</div>
+        <div class="session-id" id="session-label">connecting…</div>
+      </div>
+      <div id="ws-status">
+        <div class="ws-dot" id="ws-dot"></div>
+        <span id="ws-label">disconnected</span>
+      </div>
+    </div>
+
+    <div id="main">
+      <!-- 3D Viewport -->
+      <div id="viewport">
+        <div id="empty-state" class="visible">
+          <div class="icon">🧊</div>
+          <p>Waiting for agent to render a scene…</p>
+        </div>
+        <div id="hint">
+          🖱 Left drag: rotate &nbsp;|&nbsp; Right drag / scroll: zoom &nbsp;|&nbsp; Middle drag: pan
+        </div>
+      </div>
+
+      <!-- Side Panel -->
+      <div id="side-panel">
+        <!-- Export -->
+        <div class="panel-section">
+          <h3>Export</h3>
+          <div class="btn-row">
+            <button class="btn btn-primary"  id="btn-stl">⬇ Download STL</button>
+            <button class="btn btn-info"     id="btn-obj">⬇ Download OBJ</button>
+            <button class="btn btn-gold"     id="btn-glb">⬇ Download GLB</button>
+          </div>
+        </div>
+
+        <!-- View controls -->
+        <div class="panel-section">
+          <h3>View</h3>
+          <div class="btn-row">
+            <button class="btn btn-ghost" id="btn-reset-cam">↺ Reset Camera</button>
+            <button class="btn btn-ghost" id="btn-toggle-grid">⊞ Toggle Grid</button>
+            <button class="btn btn-ghost" id="btn-toggle-axes">✛ Toggle Axes</button>
+            <button class="btn btn-ghost" id="btn-toggle-wire">⬡ Toggle Wireframe</button>
+            <button class="btn btn-ghost" id="btn-toggle-rotate">▶ Auto-Rotate</button>
+          </div>
+        </div>
+
+        <!-- Object list -->
+        <div class="panel-section">
+          <h3>Objects</h3>
+          <div id="obj-count">No objects</div>
+          <ul id="object-list"></ul>
+        </div>
+
+        <!-- Scene info -->
+        <div class="panel-section">
+          <h3>Scene Info</h3>
+          <div class="info-row"><span>Objects</span><span id="info-obj-count">0</span></div>
+          <div class="info-row"><span>Session</span><span id="info-session" style="font-family:var(--font-mono);font-size:10px">—</span></div>
+          <div class="info-row"><span>Server</span><span id="info-port">18794</span></div>
+        </div>
+
+        <!-- Clear -->
+        <div class="panel-section">
+          <button class="btn btn-danger" id="btn-clear">🗑 Clear Scene</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast"></div>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls }  from 'three/addons/controls/OrbitControls.js';
+    import { STLExporter }    from 'three/addons/exporters/STLExporter.js';
+    import { OBJExporter }    from 'three/addons/exporters/OBJExporter.js';
+    import { GLTFExporter }   from 'three/addons/exporters/GLTFExporter.js';
+
+    // ── Session ─────────────────────────────────────────────────────────────
+    const params     = new URLSearchParams(location.search);
+    const SESSION_ID = params.get('session') || 'default';
+    const WS_PORT    = 18794;
+    const WS_HOST    = location.hostname || '127.0.0.1';
+
+    document.getElementById('session-label').textContent = `session: ${SESSION_ID}`;
+    document.getElementById('info-session').textContent  = SESSION_ID;
+
+    // ── Three.js Scene ───────────────────────────────────────────────────────
+    const viewport    = document.getElementById('viewport');
+    const scene       = new THREE.Scene();
+    scene.background  = new THREE.Color(0x070b15);
+
+    const camera = new THREE.PerspectiveCamera(60, 1, 0.1, 5000);
+    camera.position.set(50, 35, 50);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type    = THREE.PCFSoftShadowMap;
+    viewport.appendChild(renderer.domElement);
+
+    const controls           = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping   = true;
+    controls.dampingFactor   = 0.06;
+    controls.autoRotate      = false;
+    controls.autoRotateSpeed = 1.5;
+
+    // Lighting
+    const ambient = new THREE.AmbientLight(0xffffff, 0.55);
+    scene.add(ambient);
+
+    const sun = new THREE.DirectionalLight(0xffffff, 1.0);
+    sun.position.set(80, 120, 80);
+    sun.castShadow           = true;
+    sun.shadow.mapSize.width = sun.shadow.mapSize.height = 2048;
+    scene.add(sun);
+
+    const fill = new THREE.DirectionalLight(0xaaccff, 0.3);
+    fill.position.set(-60, 40, -60);
+    scene.add(fill);
+
+    // Grid & axes
+    const gridHelper = new THREE.GridHelper(200, 40, 0x1a3a2a, 0x0d2618);
+    scene.add(gridHelper);
+
+    const axesHelper = new THREE.AxesHelper(30);
+    axesHelper.visible = false;
+    scene.add(axesHelper);
+
+    // ── Geometry factory ─────────────────────────────────────────────────────
+    const objectGroup = new THREE.Group();
+    scene.add(objectGroup);
+
+    function makeGeometry(obj) {
+      const t = obj.type || 'box';
+      switch (t) {
+        case 'box':
+          return new THREE.BoxGeometry(
+            obj.width  ?? 10, obj.height ?? 10, obj.depth ?? 10);
+        case 'sphere':
+          return new THREE.SphereGeometry(
+            obj.radius ?? 5,
+            obj.widthSegments ?? 32, obj.heightSegments ?? 16);
+        case 'cylinder':
+          return new THREE.CylinderGeometry(
+            obj.radiusTop ?? 5, obj.radiusBottom ?? 5, obj.height ?? 20,
+            obj.radialSegments ?? 32);
+        case 'cone':
+          return new THREE.ConeGeometry(
+            obj.radius ?? 5, obj.height ?? 15, obj.radialSegments ?? 32);
+        case 'torus':
+          return new THREE.TorusGeometry(
+            obj.radius ?? 8, obj.tube ?? 2,
+            obj.radialSegments ?? 16, obj.tubularSegments ?? 100);
+        case 'torus_knot':
+          return new THREE.TorusKnotGeometry(
+            obj.radius ?? 6, obj.tube ?? 1.5,
+            obj.tubularSegments ?? 100, obj.radialSegments ?? 16,
+            obj.p ?? 2, obj.q ?? 3);
+        case 'plane':
+          return new THREE.PlaneGeometry(obj.width ?? 100, obj.height ?? 100);
+        case 'capsule':
+          return new THREE.CapsuleGeometry(
+            obj.radius ?? 3, obj.length ?? 12,
+            obj.capSegments ?? 4, obj.radialSegments ?? 8);
+        case 'icosahedron':
+          return new THREE.IcosahedronGeometry(obj.radius ?? 5, obj.detail ?? 0);
+        case 'octahedron':
+          return new THREE.OctahedronGeometry(obj.radius ?? 5, obj.detail ?? 0);
+        case 'dodecahedron':
+          return new THREE.DodecahedronGeometry(obj.radius ?? 5, obj.detail ?? 0);
+        case 'tetrahedron':
+          return new THREE.TetrahedronGeometry(obj.radius ?? 5, obj.detail ?? 0);
+        case 'lathe': {
+          const pts = (obj.points || [[0,0],[2,2],[3,5],[2,8],[0,10]])
+            .map(p => new THREE.Vector2(p[0], p[1]));
+          return new THREE.LatheGeometry(pts, obj.segments ?? 12);
+        }
+        case 'extrude': {
+          const shape = new THREE.Shape();
+          const pts   = obj.shape || [[0,0],[10,0],[10,10],[0,10]];
+          shape.moveTo(pts[0][0], pts[0][1]);
+          for (let i = 1; i < pts.length; i++) shape.lineTo(pts[i][0], pts[i][1]);
+          shape.closePath();
+          return new THREE.ExtrudeGeometry(shape, {
+            depth: obj.depth ?? 5,
+            bevelEnabled: obj.bevel ?? false,
+          });
+        }
+        case 'ring':
+          return new THREE.RingGeometry(
+            obj.innerRadius ?? 3, obj.outerRadius ?? 6,
+            obj.thetaSegments ?? 32);
+        case 'tube': {
+          const curve = new THREE.CatmullRomCurve3(
+            (obj.path || [[0,0,0],[5,5,0],[10,0,0]])
+              .map(p => new THREE.Vector3(p[0], p[1], p[2]))
+          );
+          return new THREE.TubeGeometry(
+            curve, obj.tubularSegments ?? 20, obj.radius ?? 1, obj.radialSegments ?? 8);
+        }
+        default:
+          console.warn('Unknown object type:', t);
+          return new THREE.BoxGeometry(5, 5, 5);
+      }
+    }
+
+    function makeMaterial(obj) {
+      return new THREE.MeshPhongMaterial({
+        color:     new THREE.Color(obj.color ?? '#10b981'),
+        wireframe: obj.wireframe ?? false,
+        opacity:   obj.opacity   ?? 1.0,
+        transparent: (obj.opacity ?? 1.0) < 1.0,
+        shininess: obj.shininess ?? 60,
+        side:      THREE.DoubleSide,
+      });
+    }
+
+    const DEG2RAD = Math.PI / 180;
+
+    function applyTransform(mesh, obj) {
+      const pos = obj.position ?? [0, 0, 0];
+      const rot = obj.rotation ?? [0, 0, 0];
+      const scl = obj.scale    ?? [1, 1, 1];
+      mesh.position.set(pos[0], pos[1], pos[2]);
+      mesh.rotation.set(rot[0] * DEG2RAD, rot[1] * DEG2RAD, rot[2] * DEG2RAD);
+      mesh.scale.set(scl[0], scl[1], scl[2]);
+    }
+
+    function buildMesh(obj) {
+      const geom = makeGeometry(obj);
+      const mat  = makeMaterial(obj);
+      const mesh = new THREE.Mesh(geom, mat);
+      mesh.name  = obj.id ?? `obj-${Math.random().toString(36).slice(2,6)}`;
+      mesh.castShadow    = true;
+      mesh.receiveShadow = true;
+      applyTransform(mesh, obj);
+      return mesh;
+    }
+
+    // ── Scene management ─────────────────────────────────────────────────────
+    let currentScene = null;
+
+    function clearObjectGroup() {
+      while (objectGroup.children.length) {
+        const m = objectGroup.children[0];
+        m.geometry?.dispose();
+        if (Array.isArray(m.material)) m.material.forEach(x => x.dispose());
+        else m.material?.dispose();
+        objectGroup.remove(m);
+      }
+    }
+
+    function applyScene(sceneData) {
+      currentScene = sceneData;
+
+      // Background
+      if (sceneData.background) {
+        scene.background = new THREE.Color(sceneData.background);
+      }
+
+      // Grid visibility
+      if (sceneData.grid !== undefined) {
+        gridHelper.visible = !!sceneData.grid;
+      }
+
+      // Axes
+      if (sceneData.axes !== undefined) {
+        axesHelper.visible = !!sceneData.axes;
+      }
+
+      // Auto-rotate
+      if (sceneData.autoRotate !== undefined) {
+        controls.autoRotate = !!sceneData.autoRotate;
+        const btn = document.getElementById('btn-toggle-rotate');
+        btn.textContent = controls.autoRotate ? '⏸ Stop Rotate' : '▶ Auto-Rotate';
+      }
+
+      // Camera
+      if (sceneData.camera) {
+        const cam = sceneData.camera;
+        if (cam.position) {
+          camera.position.set(...cam.position);
+        }
+        if (cam.target) {
+          controls.target.set(...cam.target);
+        } else {
+          controls.target.set(0, 0, 0);
+        }
+        controls.update();
+      }
+
+      // Title
+      if (sceneData.title) {
+        document.getElementById('scene-title').textContent = sceneData.title;
+      }
+
+      // Objects
+      clearObjectGroup();
+      for (const obj of (sceneData.objects || [])) {
+        objectGroup.add(buildMesh(obj));
+      }
+
+      updateObjectList();
+      updateEmptyState();
+    }
+
+    function updateObjectList() {
+      const list  = document.getElementById('object-list');
+      const count = document.getElementById('obj-count');
+      const infoCount = document.getElementById('info-obj-count');
+      const objs  = objectGroup.children;
+
+      list.innerHTML = '';
+      objs.forEach(mesh => {
+        const mat  = mesh.material;
+        const li   = document.createElement('li');
+        const dot  = document.createElement('div');
+        dot.className = 'type-dot';
+        dot.style.background = mat?.color ? '#' + mat.color.getHexString() : '#888';
+        li.appendChild(dot);
+        li.appendChild(document.createTextNode(mesh.name));
+        list.appendChild(li);
+      });
+
+      const n = objs.length;
+      count.textContent    = n === 0 ? 'No objects' : `${n} object${n === 1 ? '' : 's'}`;
+      infoCount.textContent = String(n);
+    }
+
+    function updateEmptyState() {
+      const empty = document.getElementById('empty-state');
+      if (objectGroup.children.length === 0) {
+        empty.classList.add('visible');
+      } else {
+        empty.classList.remove('visible');
+      }
+    }
+
+    // ── Resize ───────────────────────────────────────────────────────────────
+    function onResize() {
+      const w = viewport.clientWidth;
+      const h = viewport.clientHeight;
+      renderer.setSize(w, h, false);
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
+    }
+    new ResizeObserver(onResize).observe(viewport);
+    onResize();
+
+    // ── Render loop ───────────────────────────────────────────────────────────
+    function animate() {
+      requestAnimationFrame(animate);
+      controls.update();
+      renderer.render(scene, camera);
+    }
+    animate();
+
+    // ── Export helpers ────────────────────────────────────────────────────────
+    function download(blob, filename) {
+      const url = URL.createObjectURL(blob);
+      const a   = document.createElement('a');
+      a.href = url; a.download = filename;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+
+    function exportSTL() {
+      const exporter = new STLExporter();
+      const str      = exporter.parse(objectGroup, { binary: true });
+      const blob     = new Blob([str], { type: 'application/octet-stream' });
+      download(blob, 'model.stl');
+      showToast('STL exported ✓');
+      sendAction('export_stl');
+    }
+
+    function exportOBJ() {
+      const exporter = new OBJExporter();
+      const str      = exporter.parse(objectGroup);
+      const blob     = new Blob([str], { type: 'text/plain' });
+      download(blob, 'model.obj');
+      showToast('OBJ exported ✓');
+      sendAction('export_obj');
+    }
+
+    function exportGLB() {
+      const exporter = new GLTFExporter();
+      exporter.parse(
+        objectGroup,
+        (result) => {
+          const blob = new Blob([result], { type: 'application/octet-stream' });
+          download(blob, 'model.glb');
+          showToast('GLB exported ✓');
+          sendAction('export_glb');
+        },
+        (err) => { console.error('GLB export error:', err); showToast('GLB export failed ✗', true); },
+        { binary: true }
+      );
+    }
+
+    // ── Toast ─────────────────────────────────────────────────────────────────
+    function showToast(msg, isError = false) {
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.style.background = isError ? 'rgba(239,68,68,0.9)' : 'rgba(16,185,129,0.9)';
+      t.classList.add('show');
+      setTimeout(() => t.classList.remove('show'), 2500);
+    }
+
+    // ── UI Buttons ────────────────────────────────────────────────────────────
+    document.getElementById('btn-stl').addEventListener('click', exportSTL);
+    document.getElementById('btn-obj').addEventListener('click', exportOBJ);
+    document.getElementById('btn-glb').addEventListener('click', exportGLB);
+
+    document.getElementById('btn-reset-cam').addEventListener('click', () => {
+      camera.position.set(50, 35, 50);
+      controls.target.set(0, 0, 0);
+      controls.update();
+    });
+
+    document.getElementById('btn-toggle-grid').addEventListener('click', () => {
+      gridHelper.visible = !gridHelper.visible;
+    });
+
+    document.getElementById('btn-toggle-axes').addEventListener('click', () => {
+      axesHelper.visible = !axesHelper.visible;
+    });
+
+    document.getElementById('btn-toggle-wire').addEventListener('click', () => {
+      objectGroup.traverse(m => {
+        if (m.isMesh) m.material.wireframe = !m.material.wireframe;
+      });
+    });
+
+    document.getElementById('btn-toggle-rotate').addEventListener('click', (e) => {
+      controls.autoRotate = !controls.autoRotate;
+      e.target.textContent = controls.autoRotate ? '⏸ Stop Rotate' : '▶ Auto-Rotate';
+    });
+
+    document.getElementById('btn-clear').addEventListener('click', () => {
+      clearObjectGroup();
+      updateObjectList();
+      updateEmptyState();
+      sendAction('clear');
+    });
+
+    // ── WebSocket ─────────────────────────────────────────────────────────────
+    let ws = null;
+
+    function setWsStatus(state) {
+      const dot   = document.getElementById('ws-dot');
+      const label = document.getElementById('ws-label');
+      dot.className   = `ws-dot ${state}`;
+      label.textContent = state;
+    }
+
+    function sendAction(action_id, data = {}) {
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({
+          type: 'action',
+          action_id,
+          data,
+          session_id: SESSION_ID,
+          timestamp: new Date().toISOString(),
+        }));
+      }
+    }
+
+    function handleMessage(msg) {
+      const t = msg.type;
+
+      if (t === 'render_scene' || t === 'restore') {
+        applyScene(msg.scene || {});
+
+      } else if (t === 'add_object') {
+        if (msg.object) {
+          objectGroup.add(buildMesh(msg.object));
+          updateObjectList();
+          updateEmptyState();
+        }
+
+      } else if (t === 'transform') {
+        const mesh = objectGroup.getObjectByName(msg.obj_id);
+        if (mesh) {
+          if (msg.position) mesh.position.set(...msg.position);
+          if (msg.rotation) mesh.rotation.set(
+            msg.rotation[0] * DEG2RAD,
+            msg.rotation[1] * DEG2RAD,
+            msg.rotation[2] * DEG2RAD
+          );
+          if (msg.scale) mesh.scale.set(...msg.scale);
+        }
+
+      } else if (t === 'set_camera') {
+        const cam = msg.camera || {};
+        if (cam.position) camera.position.set(...cam.position);
+        if (cam.target)   controls.target.set(...cam.target);
+        controls.update();
+
+      } else if (t === 'set_title') {
+        document.getElementById('scene-title').textContent = msg.title || '';
+
+      } else if (t === 'export') {
+        const fmt = (msg.format || 'stl').toLowerCase();
+        if      (fmt === 'stl') exportSTL();
+        else if (fmt === 'obj') exportOBJ();
+        else if (fmt === 'glb') exportGLB();
+
+      } else if (t === 'clear') {
+        clearObjectGroup();
+        updateObjectList();
+        updateEmptyState();
+      }
+    }
+
+    function connectWS() {
+      const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+      ws = new WebSocket(`${proto}://${WS_HOST}:${WS_PORT}/ws?session=${SESSION_ID}`);
+
+      ws.addEventListener('open', () => {
+        setWsStatus('connected');
+        document.getElementById('session-label').textContent = `session: ${SESSION_ID}`;
+      });
+
+      ws.addEventListener('message', (e) => {
+        try {
+          handleMessage(JSON.parse(e.data));
+        } catch (err) {
+          console.error('WS parse error', err);
+        }
+      });
+
+      ws.addEventListener('close', () => {
+        setWsStatus('disconnected');
+        setTimeout(connectWS, 2000);
+      });
+
+      ws.addEventListener('error', () => {
+        setWsStatus('error');
+      });
+    }
+
+    connectWS();
+  </script>
+</body>
+</html>

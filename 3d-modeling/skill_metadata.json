@@ -1,0 +1,107 @@
+{
+  "name": "3d-modeling",
+  "description": "3D modeling canvas for agents — renders interactive Three.js browser scenes from JSON object descriptions. Supports primitives (box, sphere, cylinder, cone, torus, lathe, extrude, and more), real-time orbit controls, and one-click export to STL (3D printing), OBJ, and GLB/GLTF. Auto-starts a local HTTP+WS server on port 18794.",
+  "version": "1.0.0",
+  "author": "FosterbotHome",
+  "category": "visualization",
+  "is_public": true,
+  "keywords": ["3d", "modeling", "cad", "stl", "obj", "gltf", "glb", "three.js", "threejs", "primitives", "render", "export", "3dprint", "canvas", "websocket", "realtime"],
+  "intents": ["render_3d", "model_object", "export_stl", "export_obj", "export_glb", "visualize_3d", "3d_print_prep"],
+  "supported_actions": [
+    "render_scene",
+    "add_object",
+    "transform",
+    "set_camera",
+    "set_title",
+    "clear",
+    "open",
+    "export",
+    "wait_for_action"
+  ],
+  "parameters": {
+    "properties": {
+      "action": {
+        "type": "string",
+        "description": "Action to perform",
+        "required": true,
+        "examples": ["render_scene", "add_object", "transform", "clear", "open", "export", "wait_for_action"]
+      },
+      "session_id": {
+        "type": "string",
+        "description": "Session ID (auto-generated UUID if not provided)",
+        "required": false
+      },
+      "scene": {
+        "type": "object",
+        "description": "Full scene description: {title, background, grid, axes, autoRotate, camera, objects:[...]}",
+        "required": false
+      },
+      "object": {
+        "type": "object",
+        "description": "Single 3D object to add: {type, id, color, position, rotation, scale, ...type-specific params}",
+        "required": false
+      },
+      "obj_id": {
+        "type": "string",
+        "description": "Object ID for transform operations",
+        "required": false
+      },
+      "position": {
+        "type": "array",
+        "description": "[x, y, z] position in scene units",
+        "required": false
+      },
+      "rotation": {
+        "type": "array",
+        "description": "[x, y, z] rotation in degrees",
+        "required": false
+      },
+      "scale": {
+        "type": "array",
+        "description": "[x, y, z] scale factors",
+        "required": false
+      },
+      "export_format": {
+        "type": "string",
+        "description": "Export format: stl, obj, or glb",
+        "required": false,
+        "examples": ["stl", "obj", "glb"]
+      },
+      "timeout": {
+        "type": "integer",
+        "description": "Seconds to wait for user action (default 60)",
+        "required": false
+      }
+    }
+  },
+  "returns": {
+    "action": {
+      "type": "object",
+      "description": "Action from user: {type, action_id, data, session_id, timestamp}"
+    },
+    "status": {
+      "type": "string",
+      "description": "ok or error"
+    }
+  },
+  "runtimes": {
+    "claude": {
+      "implementation": "claude/implementation/modeling3d.py",
+      "type": "python_class"
+    },
+    "copilot": {
+      "implementation": "copilot/implementation/modeling3d_cli.py",
+      "type": "python_cli"
+    }
+  },
+  "dependencies": {
+    "python": ["websockets"],
+    "system": ["xdg-open"]
+  },
+  "server": {
+    "port": 18794,
+    "auto_start": true,
+    "auto_stop_minutes": 30,
+    "assets": "assets/3d-viewer/"
+  }
+}
