@@ -1,0 +1,107 @@
+{
+  "name": "image-to-3d",
+  "description": "Convert a single photograph into a textured 3D model (GLB/OBJ/STL). Supports local GPU inference via TripoSR and cloud inference via Replicate API (TRELLIS). Auto-previews output on the 3D Canvas.",
+  "version": "1.0.0",
+  "author": "FosterbotHome",
+  "category": "ai-generation",
+  "is_public": true,
+  "keywords": [
+    "3d", "image-to-3d", "photo-to-3d", "mesh", "reconstruction",
+    "triposr", "trellis", "glb", "obj", "stl", "ai", "conversion",
+    "3dprint", "gpu", "neural-network"
+  ],
+  "intents": [
+    "convert_image_to_3d", "photo_to_3d", "generate_3d_model",
+    "image_to_mesh", "create_3d_from_photo", "3d_reconstruct",
+    "image_to_stl", "image_to_glb", "image_to_obj"
+  ],
+  "supported_actions": [
+    "convert",
+    "health_check",
+    "list_backends",
+    "batch_convert"
+  ],
+  "parameters": {
+    "properties": {
+      "action": {
+        "type": "string",
+        "description": "Action to perform",
+        "required": true,
+        "examples": ["convert", "health_check", "list_backends"]
+      },
+      "image": {
+        "type": "string",
+        "description": "Path to image file or URL",
+        "required": true
+      },
+      "backend": {
+        "type": "string",
+        "description": "Inference backend selection",
+        "required": false,
+        "default": "auto",
+        "enum": ["auto", "local", "cloud"]
+      },
+      "model": {
+        "type": "string",
+        "description": "Specific model to use",
+        "required": false,
+        "default": "triposr",
+        "enum": ["triposr", "trellis", "sf3d"]
+      },
+      "output_format": {
+        "type": "string",
+        "description": "Output 3D model format",
+        "required": false,
+        "default": "glb",
+        "enum": ["glb", "obj", "stl", "ply"]
+      },
+      "quality": {
+        "type": "string",
+        "description": "Quality preset affecting resolution and detail",
+        "required": false,
+        "default": "standard",
+        "enum": ["draft", "standard", "high"]
+      },
+      "texture_resolution": {
+        "type": "integer",
+        "description": "Texture resolution in pixels",
+        "required": false,
+        "default": 1024,
+        "enum": [512, 1024, 2048]
+      },
+      "preview": {
+        "type": "boolean",
+        "description": "Auto-open result in 3D Canvas",
+        "required": false,
+        "default": true
+      },
+      "output_dir": {
+        "type": "string",
+        "description": "Directory to save output model",
+        "required": false,
+        "default": "/tmp/3d-output"
+      },
+      "remove_background": {
+        "type": "boolean",
+        "description": "Auto-remove image background before conversion",
+        "required": false,
+        "default": true
+      }
+    }
+  },
+  "dependencies": {
+    "python": ">=3.9",
+    "gpu": "NVIDIA CUDA GPU with >=6GB VRAM (for local mode)",
+    "skills": ["3d-modeling"],
+    "env_vars": {
+      "REPLICATE_API_TOKEN": "Required for cloud backend (Replicate)",
+      "STABILITY_API_KEY": "Required for Stability AI SF3D backend"
+    }
+  },
+  "server": {
+    "port": 18795,
+    "host": "localhost",
+    "auto_start": true,
+    "health_endpoint": "/health"
+  }
+}
