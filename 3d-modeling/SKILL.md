@@ -1,10 +1,6 @@
 ---
 name: 3d-modeling
-description: >
-  3D modeling canvas for agents. Use when you need to visualize 3D objects, primitives, or compound
-  shapes in a browser canvas. The agent describes scenes with JSON (primitives, positions, materials),
-  the viewer renders them via Three.js with orbit controls, and the user can export STL/OBJ/GLB for
-  3D printing or CAD workflows. Server auto-starts on first use on port 18794.
+description: "3D modeling canvas for agents. Renders Three.js scenes from JSON object descriptions. Supports 16 primitives (box, sphere, cylinder, torus, lathe, extrude, etc), orbit controls, and exports STL/OBJ/GLB for 3D printing and CAD. Auto-starts server on port 18794."
 metadata:
   keywords: [3d, modeling, cad, stl, obj, gltf, glb, threejs, primitives, render, export, 3dprint]
   port: 18794
