@@ -16,6 +16,7 @@ from .mesh_utils import get_mesh_metadata, convert_mesh_format
 from .backends.triposr_local import TripoSRLocalBackend
 from .backends.replicate_cloud import ReplicateCloudBackend
 from .backends.stability_cloud import StabilityCloudBackend
+from .backends.triposr_cpu import TripoSRCPUBackend
 
 logger = logging.getLogger("image-to-3d.converter")
 
@@ -29,6 +30,7 @@ class ImageTo3DConverter:
             "triposr_local": TripoSRLocalBackend(),
             "replicate_cloud": ReplicateCloudBackend(),
             "stability_cloud": StabilityCloudBackend(),
+            "triposr_cpu": TripoSRCPUBackend(),
         }
 
     def convert(
@@ -157,22 +159,37 @@ class ImageTo3DConverter:
     def _select_backend(self, preference: str, quality: str) -> str:
         """Select the best backend based on preference and quality."""
         if preference == "local":
-            return "triposr_local"
+            if self.backends["triposr_local"].is_available():
+                return "triposr_local"
+            # Fall back to CPU TripoSR if GPU server isn't running
+            if self.backends["triposr_cpu"].is_available():
+                return "triposr_cpu"
+            return "triposr_local"  # will fail with helpful error
 
         if preference == "cloud":
             return self._get_cloud_backend_name()
 
-        # Auto mode
+        # Auto mode: try best backends in order
         if quality == "high":
             cloud = self._get_cloud_backend_name()
             if self.backends[cloud].is_available():
                 return cloud
 
-        # Try local first
+        # Try local GPU server first (fastest)
         if self.backends["triposr_local"].is_available():
             return "triposr_local"
 
-        # Fall back to cloud
+        # Try cloud backends
+        cloud = self._get_cloud_backend_name()
+        if self.backends[cloud].is_available():
+            return cloud
+
+        # Fall back to CPU TripoSR (slow but produces true 3D)
+        if self.backends["triposr_cpu"].is_available():
+            logger.info("No GPU or cloud backends available, using TripoSR on CPU")
+            return "triposr_cpu"
+
+        # Nothing available — return cloud to get a useful error message
         return self._get_cloud_backend_name()
 
     def _get_cloud_backend_name(self) -> str:
@@ -184,8 +201,8 @@ class ImageTo3DConverter:
         return "replicate_cloud"  # default even if unavailable
 
     def _get_cloud_fallback(self):
-        """Get a cloud backend for fallback."""
-        for name in ["replicate_cloud", "stability_cloud"]:
+        """Get a fallback backend (cloud or CPU TripoSR)."""
+        for name in ["replicate_cloud", "stability_cloud", "triposr_cpu"]:
             backend = self.backends[name]
             if backend.is_available():
                 return backend
