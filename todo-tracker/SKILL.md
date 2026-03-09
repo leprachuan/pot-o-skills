@@ -75,25 +75,25 @@ JavaScript implementation for web-based TODO interfaces.
 
 ## Storage Format
 
-TODOs are stored in simple markdown:
+TODOs are stored as individual files in ACTIVE/ and COMPLETED/ directories:
 
-```markdown
-# TODOs
-
-## Active
-
-[ ] Buy groceries (due 03/15/2026)
-    Need milk, eggs, bread
-
-[ ] Deploy app (due 03/14/2026 09:00:00) {WORK,URGENT}
-    Test on staging first
-
-[X] Review PR (due 03/13/2026)
-
-## Completed
-
-[X] Fix kitchen light (due 03/12/2026)
 ```
+/opt/fosterbot-home/TODOs/
+├── ACTIVE/
+│   ├── 🐛 Investigate Claude session ID handling for 404 errors
+│   ├── 📏 Measure all rooms
+│   ├── 💰 Taxes due end of March
+│   └── 🎒 Purchase Italy Travel Gear (due 04/08/2026)
+└── COMPLETED/
+    ├── ✅ Auto-Runtime
+    ├── ✅ Proactive Watchers - Poll to trigger AI
+    └── ✅ TODO Channel Updates
+```
+
+**Format:**
+- Each file = one TODO
+- Filename = TODO description
+- File contents = Due date, labels, notes (optional)
 
 ## Reminder Behavior
 

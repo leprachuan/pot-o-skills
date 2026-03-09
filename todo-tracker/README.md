@@ -1,6 +1,6 @@
 # TODO Tracker Skill
 
-Production-ready TODO management system with markdown-based storage, due dates, labels, and automatic reminders. Fully portable with environment variable configuration for multi-host deployments (CLI-Tools, MacBook, Docker, etc).
+Production-ready TODO management system with file-based storage (one file per TODO), due dates, labels, and automatic reminders. Fully portable with environment variable configuration for multi-host deployments (CLI-Tools, MacBook, Docker, etc).
 
 ## Quick Start
 
@@ -72,59 +72,76 @@ VOLUME /config
 
 ## Storage Details
 
-TODOs are stored in markdown format for easy editing and version control:
+TODOs are stored as **individual files** for easy management and version control:
 
-```markdown
-# TODOs
-
-## Active
-
-[ ] Buy groceries (due 03/15/2026)
-    Need: milk, eggs, bread
-
-[ ] Deploy app (due 03/14/2026 09:00:00) {WORK,URGENT}
-    - Test on staging first
-    - Notify team 30 min before
-
-[X] Fix kitchen light (due 03/12/2026 14:30:00)
-
-## Completed
-
-[X] Review PR (due 03/11/2026)
 ```
+/opt/fosterbot-home/TODOs/
+├── ACTIVE/
+│   ├── 🐛 Investigate Claude session ID handling for 404 errors
+│   │   (file contents: due date, labels, notes)
+│   ├── 📏 Measure all rooms
+│   ├── 💰 Taxes due end of March
+│   └── 🎒 Purchase Italy Travel Gear
+│       (due 04/08/2026)
+│
+└── COMPLETED/
+    ├── ✅ Auto-Runtime
+    ├── ✅ Proactive Watchers - Poll to trigger AI
+    ├── ✅ TODO Channel Updates
+    └── ⚽ Oliver - Soccer pre-season training (Mar 8)
+```
+
+**File Structure:**
+- **Filename** = TODO description (with optional emoji prefix)
+- **Directory** = Status (ACTIVE or COMPLETED)
+- **File contents** = Optional metadata (due date, labels, notes)
 
 ## Format Specification
 
-### Basic TODO
-```markdown
-[ ] Task description
+### File-based TODO Structure
+
+Each TODO is a separate file:
+
+**Basic TODO (no metadata):**
+```
+ACTIVE/Buy groceries
+```
+(empty file or minimal content)
+
+**TODO with Due Date:**
+```
+ACTIVE/Deploy app
+File contents:
+(due 03/14/2026 09:00:00)
 ```
 
-### TODO with Due Date (date only)
-```markdown
-[ ] Task description (due 03/15/2026)
+**TODO with Labels:**
+```
+ACTIVE/Deploy app
+File contents:
+(due 03/14/2026 09:00:00) {WORK,URGENT}
 ```
 
-### TODO with Due Date and Time
-```markdown
-[ ] Task description (due 03/15/2026 14:30:00)
+**TODO with Notes:**
+```
+ACTIVE/Deploy app
+File contents:
+(due 03/14/2026 09:00:00) {WORK,URGENT}
+Test on staging first
+Notify team 30 min before
 ```
 
-### TODO with Labels
-```markdown
-[ ] Task description {LABEL1,LABEL2}
+**Completed TODO:**
+```
+COMPLETED/Review PR
+File contents:
+(due 03/13/2026)
 ```
 
-### TODO with Notes
-```markdown
-[ ] Task description
-    Additional details and notes here
-```
-
-### Completed TODO
-```markdown
-[X] Task description (due 03/15/2026)
-```
+### Naming Convention
+- **Filename** = TODO description
+- **Optional emoji prefix** = Category indicator (🐛 bug, 💰 financial, ⚽ sports, etc.)
+- **File moved to COMPLETED/** when done
 
 ## Features
 
