@@ -1,0 +1,51 @@
+{
+  "name": "todo-tracker",
+  "version": "2.0.0",
+  "description": "Production-ready TODO management with markdown storage, due dates, labels, and automatic reminders. Fully portable with environment variable configuration for multi-host deployments.",
+  "author": "Fosterbot",
+  "license": "MIT",
+  "requires_auth": false,
+  "portable": true,
+  "capabilities": [
+    "add_todo",
+    "complete_todo",
+    "list_todos",
+    "get_upcoming",
+    "add_label",
+    "list_labels",
+    "remove_todo",
+    "update_todo",
+    "get_overdue"
+  ],
+  "config": {
+    "todo_file": "auto-detected",
+    "reminder_lead_time_date": "1 day",
+    "reminder_lead_time_time": "15 minutes"
+  },
+  "environment_variables": {
+    "TODO_FILE": "Path to TODO markdown file (auto-detected if not set)",
+    "TODO_STATE_FILE": "Path to reminder state file (default: ~/.todo-reminder-state.json)",
+    "TODO_CONFIG_FILE": "Path to reminder config file (default: ~/.todo-reminder-config.json)",
+    "TODO_REMINDER_CHANNEL": "Notification channel: telegram or webex (default: telegram)",
+    "TELEGRAM_CONFIG_PATHS": "Colon-separated paths to telegram config files",
+    "TELEGRAM_SKILL_PATH": "Path to telegram-notify skill",
+    "WEBEX_CONFIG_PATHS": "Colon-separated paths to webex config files",
+    "WEBEX_SKILL_PATH": "Path to webex-notify skill"
+  },
+  "features": {
+    "markdown_format": true,
+    "due_dates": true,
+    "labels": true,
+    "reminders": true,
+    "notes": true,
+    "snooze": true,
+    "portable": true,
+    "environment_configurable": true
+  },
+  "requires_python": "3.7+",
+  "dependencies": [
+    "pyyaml",
+    "python-dateutil"
+  ],
+  "runtimes": ["claude", "copilot", "gemini"]
+}
