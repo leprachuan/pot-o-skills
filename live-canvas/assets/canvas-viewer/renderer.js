@@ -50,6 +50,7 @@ function _dispatch(comp) {
     case 'table':       return _renderTable(comp);
     case 'chart_bar':   return _renderChart(comp, 'bar');
     case 'chart_line':  return _renderChart(comp, 'line');
+    case 'sankey':      return _renderSankey(comp);
     case 'metric':      return _renderMetric(comp);
     case 'progress':    return _renderProgress(comp);
     case 'badge':       return _renderBadge(comp);
@@ -62,6 +63,8 @@ function _dispatch(comp) {
     // Content
     case 'heading':     return _renderHeading(comp);
     case 'text':        return _renderText(comp);
+    case 'markdown':    return _renderMarkdown(comp);
+    case 'html':        return _renderHTML(comp);
     case 'list':        return _renderList(comp);
     case 'divider':     return _renderDivider();
     case 'flowchart':   return _renderFlowchart(comp);
@@ -268,7 +271,13 @@ function _renderChart(comp, defaultType) {
   // Defer chart creation so the canvas is in the DOM
   setTimeout(() => {
     const type = comp.chart_type || defaultType;
-    createChart(canvas, type, comp.labels || [], comp.datasets || []);
+    createChart(
+      canvas,
+      type,
+      comp.labels || [],
+      comp.datasets || [],
+      comp.vertical_lines || [],
+    );
   }, 50);
 
   return wrap;
@@ -549,6 +558,91 @@ function _renderText(comp) {
   return el;
 }
 
+function _renderMarkdown(comp) {
+  const el = document.createElement('div');
+  el.className = 'markdown-content';
+  el.style.cssText = 'font-size:14px;line-height:1.8;color:var(--text-secondary);';
+  _storeComp(el, comp);
+  
+  if (typeof marked === 'undefined') {
+    el.textContent = 'Marked.js not loaded';
+    el.style.color = 'var(--danger)';
+    return el;
+  }
+  
+  const markdown = comp.content || comp.text || '';
+  const html = marked.parse(markdown);
+  const sanitized = typeof DOMPurify !== 'undefined' ? DOMPurify.sanitize(html) : html;
+  
+  el.innerHTML = sanitized;
+  
+  // Style markdown elements
+  const style = document.createElement('style');
+  style.textContent = `
+    .markdown-content h1, .markdown-content h2, .markdown-content h3 {
+      color: var(--text-primary);
+      margin-top: 16px;
+      margin-bottom: 8px;
+      font-weight: 600;
+    }
+    .markdown-content h1 { font-size: 24px; }
+    .markdown-content h2 { font-size: 20px; }
+    .markdown-content h3 { font-size: 16px; }
+    .markdown-content p { margin: 8px 0; }
+    .markdown-content ul, .markdown-content ol { margin-left: 20px; margin: 8px 0; }
+    .markdown-content li { margin: 4px 0; }
+    .markdown-content code {
+      background: rgba(255,255,255,0.08);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: var(--font-mono);
+      font-size: 13px;
+      color: #3ecf8e;
+    }
+    .markdown-content pre {
+      background: rgba(0,0,0,0.3);
+      padding: 12px;
+      border-radius: 8px;
+      overflow-x: auto;
+      margin: 8px 0;
+    }
+    .markdown-content pre code {
+      background: none;
+      padding: 0;
+      color: #aaa;
+    }
+    .markdown-content strong { color: var(--text-primary); font-weight: 600; }
+    .markdown-content em { font-style: italic; color: var(--text-primary); }
+    .markdown-content a { color: #7fb5ff; text-decoration: underline; }
+    .markdown-content blockquote {
+      border-left: 3px solid var(--accent);
+      padding-left: 12px;
+      margin: 8px 0;
+      color: var(--text-muted);
+      font-style: italic;
+    }
+    .markdown-content table { border-collapse: collapse; margin: 12px 0; width: 100%; }
+    .markdown-content td, .markdown-content th { border: 1px solid var(--glass-border); padding: 8px; text-align: left; }
+    .markdown-content th { background: rgba(255,255,255,0.05); font-weight: 600; }
+    .markdown-content hr { border: 0; border-top: 1px solid var(--glass-border); margin: 16px 0; }
+  `;
+  document.head.appendChild(style);
+  
+  return el;
+}
+
+function _renderHTML(comp) {
+  const el = document.createElement('div');
+  el.style.cssText = 'font-size:14px;line-height:1.8;color:var(--text-secondary);';
+  _storeComp(el, comp);
+  
+  const html = comp.content || comp.html || '';
+  const sanitized = typeof DOMPurify !== 'undefined' ? DOMPurify.sanitize(html) : html;
+  el.innerHTML = sanitized;
+  
+  return el;
+}
+
 function _renderList(comp) {
   const el = document.createElement(comp.ordered ? 'ol' : 'ul');
   el.style.cssText = 'padding-left:20px;font-size:14px;color:var(--text-secondary);display:flex;flex-direction:column;gap:4px;';
@@ -601,6 +695,69 @@ function _renderCode(comp) {
   pre.style.borderRadius = comp.label ? '0 0 var(--radius) var(--radius)' : 'var(--radius)';
   pre.textContent = comp.content || comp.code || '';
   wrap.appendChild(pre);
+  return wrap;
+}
+
+// ── Sankey Chart ─────────────────────────────────────────────────────────────
+
+function _renderSankey(comp) {
+  const wrap = document.createElement('div');
+  wrap.className = 'glass-panel';
+  wrap.style.minHeight = '400px';
+  _storeComp(wrap, comp);
+
+  if (comp.label || comp.title) {
+    const h = document.createElement('div');
+    h.style.cssText = 'font-weight:600;font-size:13px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:12px;padding:0 16px;padding-top:12px;';
+    h.textContent = comp.label || comp.title;
+    wrap.appendChild(h);
+  }
+
+  const container = document.createElement('div');
+  container.style.cssText = 'width:100%;height:400px;';
+  wrap.appendChild(container);
+
+  // Defer sankey creation so container is in DOM
+  setTimeout(() => {
+    if (typeof Plotly === 'undefined') {
+      container.style.color = 'var(--danger)';
+      container.textContent = 'Plotly not loaded';
+      return;
+    }
+
+    // Build Plotly Sankey data format
+    const nodes = comp.nodes || [];
+    const links = comp.links || [];
+
+    const data = [{
+      type: 'sankey',
+      node: {
+        pad: 15,
+        thickness: 20,
+        line: { color: 'black', width: 0.5 },
+        label: nodes.map(n => n.label || n),
+        color: (comp.nodeColors || nodes.map(() => '#3ecf8e')).slice(0, nodes.length)
+      },
+      link: {
+        source: links.map(l => nodes.findIndex(n => (n.label || n) === l.source)),
+        target: links.map(l => nodes.findIndex(n => (n.label || n) === l.target)),
+        value: links.map(l => l.value || 1),
+        color: (links.map(l => l.color || 'rgba(62, 207, 142, 0.4)'))
+      }
+    }];
+
+    const layout = {
+      title: comp.chartTitle || { text: '' },
+      font: { family: 'var(--font)', color: 'rgba(255,255,255,0.7)', size: 11 },
+      plot_bgcolor: 'transparent',
+      paper_bgcolor: 'transparent',
+      margin: { l: 0, r: 0, t: 20, b: 0 },
+      height: 400
+    };
+
+    Plotly.newPlot(container, data, layout, { responsive: true, displayModeBar: false });
+  }, 50);
+
   return wrap;
 }
 

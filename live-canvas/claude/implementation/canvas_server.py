@@ -5,6 +5,7 @@ Auto-stops after 30 minutes of no active WebSocket connections.
 """
 import asyncio
 import json
+import ssl
 import time
 from pathlib import Path
 from urllib.parse import urlparse, parse_qs
@@ -209,18 +210,62 @@ def _load_hosts() -> list[str]:
     return ["127.0.0.1"]
 
 
+def _load_tls_context() -> ssl.SSLContext | None:
+    """Load optional TLS settings from canvas_config.json."""
+    config_path = Path(__file__).parent / "canvas_config.json"
+    if not config_path.exists():
+        return None
+
+    try:
+        cfg = json.loads(config_path.read_text())
+    except Exception:
+        return None
+
+    tls_cfg = cfg.get("tls", {})
+    if not isinstance(tls_cfg, dict) or not tls_cfg.get("enabled"):
+        return None
+
+    certfile = tls_cfg.get("certfile")
+    keyfile = tls_cfg.get("keyfile")
+    if not certfile or not keyfile:
+        print("TLS enabled but certfile/keyfile missing in canvas_config.json; starting without TLS.", flush=True)
+        return None
+
+    cert_path = Path(certfile).expanduser()
+    key_path = Path(keyfile).expanduser()
+    if not cert_path.exists() or not key_path.exists():
+        print("TLS enabled but certfile/keyfile paths do not exist; starting without TLS.", flush=True)
+        return None
+
+    try:
+        context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+        context.load_cert_chain(certfile=str(cert_path), keyfile=str(key_path))
+        return context
+    except Exception as exc:
+        print(f"Failed to initialize TLS context: {exc}; starting without TLS.", flush=True)
+        return None
+
+
 async def main():
     import contextlib
     stop_event = asyncio.Event()
     asyncio.create_task(_inactivity_monitor(stop_event))
 
     hosts = _load_hosts()
+    ssl_context = _load_tls_context()
+    scheme = "https" if ssl_context else "http"
     async with contextlib.AsyncExitStack() as stack:
         for host in hosts:
             await stack.enter_async_context(
-                serve(handler, host, PORT, process_request=process_request)
+                serve(
+                    handler,
+                    host,
+                    PORT,
+                    process_request=process_request,
+                    ssl=ssl_context,
+                )
             )
-            print(f"Canvas server listening on http://{host}:{PORT}", flush=True)
+            print(f"Canvas server listening on {scheme}://{host}:{PORT}", flush=True)
         await stop_event.wait()
 
     print("Canvas server stopped (inactivity timeout).", flush=True)

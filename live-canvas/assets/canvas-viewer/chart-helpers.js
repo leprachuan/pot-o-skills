@@ -41,10 +41,12 @@ const PALETTE = [
  * @param {HTMLCanvasElement} canvas
  * @param {'bar'|'line'} type
  * @param {string[]} labels
- * @param {Array} datasets  Each: { label, data, color? }
+ * @param {Array} datasets  Each: { label, data, color?, yAxisID? }
+ * @param {Array} verticalLines - Optional vertical line markers
+ * @param {Object} options - Optional chart options (scales, etc.)
  * @returns {Chart}
  */
-function createChart(canvas, type, labels, datasets) {
+function createChart(canvas, type, labels, datasets, verticalLines = [], options = {}) {
   if (typeof Chart === 'undefined') {
     console.warn('Chart.js not loaded yet');
     return null;
@@ -66,6 +68,11 @@ function createChart(canvas, type, labels, datasets) {
       borderWidth: type === 'bar' ? 0 : 2,
     };
 
+    // Support yAxisID for dual-axis charts
+    if (ds.yAxisID) {
+      base.yAxisID = ds.yAxisID;
+    }
+
     if (type === 'line') {
       base.tension = 0.4;
       base.fill = ds.fill !== undefined ? ds.fill : false;
@@ -77,9 +84,68 @@ function createChart(canvas, type, labels, datasets) {
     return base;
   });
 
+  const verticalLinePlugin = {
+    id: 'liveCanvasVerticalLines',
+    afterDatasetsDraw(chart) {
+      if (!Array.isArray(verticalLines) || !verticalLines.length) return;
+      const xScale = chart.scales.x;
+      const area = chart.chartArea;
+      if (!xScale || !area) return;
+
+      const ctx = chart.ctx;
+      ctx.save();
+
+      for (const marker of verticalLines) {
+        const value = typeof marker === 'string' ? marker : marker?.value;
+        if (!value) continue;
+        const idx = labels.indexOf(value);
+        if (idx < 0) continue;
+
+        const color = marker?.color || '#f5c542';
+        const width = marker?.width || 1;
+        const label = marker?.label || '';
+        const dash = marker?.dash || [5, 4];
+
+        const x = xScale.getPixelForValue(idx);
+        ctx.beginPath();
+        ctx.setLineDash(dash);
+        ctx.moveTo(x, area.top);
+        ctx.lineTo(x, area.bottom);
+        ctx.lineWidth = width;
+        ctx.strokeStyle = color;
+        ctx.stroke();
+
+        if (label) {
+          ctx.setLineDash([]);
+          ctx.fillStyle = color;
+          ctx.font = '11px var(--font, sans-serif)';
+          ctx.textAlign = 'left';
+          ctx.fillText(label, x + 4, area.top + 12);
+        }
+      }
+
+      ctx.restore();
+    },
+  };
+
+  // Merge user options with defaults
+  const chartOptions = {
+    ...LC_CHART_DEFAULTS,
+    ...options
+  };
+
+  // If user provided custom scales (for dual-axis), merge them in
+  if (options.scales) {
+    chartOptions.scales = {
+      ...LC_CHART_DEFAULTS.scales,
+      ...options.scales
+    };
+  }
+
   return new Chart(canvas, {
     type,
     data: { labels, datasets: processedDatasets },
-    options: LC_CHART_DEFAULTS,
+    options: chartOptions,
+    plugins: [verticalLinePlugin],
   });
 }

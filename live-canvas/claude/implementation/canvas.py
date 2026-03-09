@@ -12,6 +12,7 @@ Usage:
 import asyncio
 import json
 import socket
+import ssl
 import subprocess
 import sys
 import time
@@ -25,8 +26,24 @@ import os
 SERVER_PORT = int(os.environ.get("CANVAS_PORT", 18793))
 SERVER_HOST = os.environ.get("CANVAS_HOST", "localhost")
 SERVER_MODULE = Path(__file__).parent / "canvas_server.py"
-WS_BASE = f"ws://{SERVER_HOST}:{SERVER_PORT}/ws"
-HTTP_BASE = f"http://{SERVER_HOST}:{SERVER_PORT}"
+
+
+def _tls_enabled() -> bool:
+    env = os.environ.get("CANVAS_HTTPS", "").strip().lower()
+    if env in {"1", "true", "yes", "on"}:
+        return True
+    if env in {"0", "false", "no", "off"}:
+        return False
+
+    config_path = Path(__file__).parent / "canvas_config.json"
+    if config_path.exists():
+        try:
+            cfg = json.loads(config_path.read_text())
+            tls_cfg = cfg.get("tls", {})
+            return bool(isinstance(tls_cfg, dict) and tls_cfg.get("enabled"))
+        except Exception:
+            return False
+    return False
 
 
 def _is_server_running() -> bool:
@@ -64,7 +81,13 @@ class Canvas:
     # ── Internal helpers ─────────────────────────────────────────────────────
 
     def _ws_url(self) -> str:
-        return f"{WS_BASE}?session={self.session_id}"
+        scheme = "wss" if _tls_enabled() else "ws"
+        return f"{scheme}://{SERVER_HOST}:{SERVER_PORT}/ws?session={self.session_id}"
+
+    def viewer_url(self) -> str:
+        """Return browser URL for this canvas session."""
+        scheme = "https" if _tls_enabled() else "http"
+        return f"{scheme}://{SERVER_HOST}:{SERVER_PORT}?session={self.session_id}"
 
     def _send(self, message: dict):
         """Send a single message to the server and close."""
@@ -72,7 +95,11 @@ class Canvas:
 
     async def _async_send(self, message: dict):
         import websockets
-        async with websockets.connect(self._ws_url()) as ws:
+        ssl_ctx = None
+        if self._ws_url().startswith("wss://"):
+            # Default to permissive TLS for self-signed local canvas certs.
+            ssl_ctx = ssl._create_unverified_context()
+        async with websockets.connect(self._ws_url(), ssl=ssl_ctx) as ws:
             await ws.send(json.dumps(message))
 
     # ── Public API ────────────────────────────────────────────────────────────
@@ -96,7 +123,7 @@ class Canvas:
 
     def open(self):
         """Open the canvas viewer in the default browser."""
-        url = f"{HTTP_BASE}?session={self.session_id}"
+        url = self.viewer_url()
         try:
             subprocess.Popen(["xdg-open", url], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         except FileNotFoundError:
@@ -115,7 +142,11 @@ class Canvas:
         ws_url = self._ws_url()
         deadline = time.time() + timeout
 
-        async with websockets.connect(ws_url) as ws:
+        ssl_ctx = None
+        if ws_url.startswith("wss://"):
+            ssl_ctx = ssl._create_unverified_context()
+
+        async with websockets.connect(ws_url, ssl=ssl_ctx) as ws:
             # Register as an action watcher
             await ws.send(json.dumps({"type": "subscribe_actions", "session_id": self.session_id}))
 
@@ -228,6 +259,7 @@ def _tpl_data_dashboard(data: dict) -> list:
             "label": chart.get("label", "Chart"),
             "labels": chart.get("labels", []),
             "datasets": chart.get("datasets", []),
+            "vertical_lines": chart.get("vertical_lines", []),
         })
 
     table = data.get("table")

@@ -65,7 +65,7 @@ def main():
 
     elif args.command == "open":
         canvas.open()
-        print(f"Opened canvas: http://localhost:18793?session={canvas.session_id}")
+        print(f"Opened canvas: {canvas.viewer_url()}")
 
     elif args.command == "wait-action":
         print(f"Waiting for user action (timeout: {args.timeout}s)…", flush=True)

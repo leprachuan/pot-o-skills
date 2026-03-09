@@ -134,7 +134,7 @@ def execute_canvas_function(name: str, args: dict) -> Any:
 
     elif name == "canvas_open":
         canvas.open()
-        return {"status": "ok", "url": f"http://localhost:18793?session={canvas.session_id}"}
+        return {"status": "ok", "url": canvas.viewer_url()}
 
     elif name == "canvas_wait_for_action":
         timeout = int(args.get("timeout", 60))
