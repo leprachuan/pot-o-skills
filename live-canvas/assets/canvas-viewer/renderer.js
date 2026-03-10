@@ -48,8 +48,14 @@ function _dispatch(comp) {
     case 'col':         return _renderCol(comp);
     // Data
     case 'table':       return _renderTable(comp);
-    case 'chart_bar':   return _renderChart(comp, 'bar');
-    case 'chart_line':  return _renderChart(comp, 'line');
+    case 'chart_bar':      return _renderChart(comp, 'bar');
+    case 'chart_line':     return _renderChart(comp, 'line');
+    case 'chart_pie':      return _renderChart(comp, 'pie');
+    case 'chart_doughnut': return _renderChart(comp, 'doughnut');
+    case 'chart_radar':    return _renderChart(comp, 'radar');
+    case 'chart_polar':    return _renderChart(comp, 'polarArea');
+    case 'chart_bubble':   return _renderXYChart(comp, 'bubble');
+    case 'chart_scatter':  return _renderXYChart(comp, 'scatter');
     case 'sankey':      return _renderSankey(comp);
     case 'metric':      return _renderMetric(comp);
     case 'progress':    return _renderProgress(comp);
@@ -282,6 +288,33 @@ function _renderChart(comp, defaultType) {
 
   return wrap;
 }
+
+// Scatter and bubble charts use {x,y} / {x,y,r} point data — no string labels
+function _renderXYChart(comp, defaultType) {
+  const wrap = document.createElement('div');
+  wrap.className = 'glass-panel';
+  _storeComp(wrap, comp);
+
+  if (comp.label || comp.title) {
+    const h = document.createElement('div');
+    h.style.cssText = 'font-weight:600;font-size:13px;color:var(--text-muted);margin-bottom:12px;';
+    h.textContent = comp.label || comp.title;
+    wrap.appendChild(h);
+  }
+
+  const canvas = document.createElement('canvas');
+  canvas.style.maxHeight = '300px';
+  wrap.appendChild(canvas);
+
+  setTimeout(() => {
+    const type = comp.chart_type || defaultType;
+    // Pass empty labels array — scatter/bubble rely on {x,y} point objects
+    createChart(canvas, type, [], comp.datasets || [], [], comp.options || {});
+  }, 50);
+
+  return wrap;
+}
+
 
 function _renderMetric(comp) {
   const wrap = document.createElement('div');

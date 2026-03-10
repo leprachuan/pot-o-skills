@@ -36,13 +36,18 @@ const PALETTE = [
   '#c084fc', '#34d399', '#fb923c', '#60a5fa',
 ];
 
+// Chart types that use per-slice colors instead of a single dataset color
+const RADIAL_CHART_TYPES = new Set(['pie', 'doughnut', 'polarArea']);
+
 /**
  * Create a Chart.js chart on a canvas element.
  * @param {HTMLCanvasElement} canvas
- * @param {'bar'|'line'} type
+ * @param {'bar'|'line'|'pie'|'doughnut'|'radar'|'polarArea'|'bubble'|'scatter'} type
  * @param {string[]} labels
  * @param {Array} datasets  Each: { label, data, color?, yAxisID? }
- * @param {Array} verticalLines - Optional vertical line markers
+ *   - bubble data items: { x, y, r }
+ *   - scatter data items: { x, y }
+ * @param {Array} verticalLines - Optional vertical line markers (line/bar only)
  * @param {Object} options - Optional chart options (scales, etc.)
  * @returns {Chart}
  */
@@ -56,16 +61,31 @@ function createChart(canvas, type, labels, datasets, verticalLines = [], options
   const existing = Chart.getChart(canvas);
   if (existing) existing.destroy();
 
+  const isRadial = RADIAL_CHART_TYPES.has(type);
+
   const processedDatasets = datasets.map((ds, i) => {
     const color = ds.color || PALETTE[i % PALETTE.length];
     const alpha = `${color}33`; // 20% opacity for fill
+
+    // Radial charts (pie/doughnut/polar) get a slice per data point
+    if (isRadial) {
+      const sliceColors = (ds.data || []).map((_, j) => PALETTE[j % PALETTE.length]);
+      return {
+        label: ds.label || `Series ${i + 1}`,
+        data: ds.data || [],
+        backgroundColor: ds.colors || sliceColors,
+        borderColor: 'rgba(15,20,35,0.5)',
+        borderWidth: 1,
+        hoverOffset: 6,
+      };
+    }
 
     const base = {
       label: ds.label || `Series ${i + 1}`,
       data: ds.data || [],
       borderColor: color,
-      backgroundColor: type === 'bar' ? color : alpha,
-      borderWidth: type === 'bar' ? 0 : 2,
+      backgroundColor: (type === 'bar') ? color : alpha,
+      borderWidth: (type === 'bar') ? 0 : 2,
     };
 
     // Support yAxisID for dual-axis charts
@@ -79,6 +99,26 @@ function createChart(canvas, type, labels, datasets, verticalLines = [], options
       base.pointBackgroundColor = color;
       base.pointRadius = 3;
       base.pointHoverRadius = 5;
+    }
+
+    if (type === 'radar') {
+      base.fill = ds.fill !== undefined ? ds.fill : true;
+      base.pointBackgroundColor = color;
+      base.pointRadius = 3;
+    }
+
+    if (type === 'bubble') {
+      base.backgroundColor = `${color}99`; // more opaque for bubbles
+      base.borderColor = color;
+      base.borderWidth = 1;
+    }
+
+    if (type === 'scatter') {
+      base.backgroundColor = `${color}cc`;
+      base.borderColor = color;
+      base.borderWidth = 1;
+      base.pointRadius = 5;
+      base.pointHoverRadius = 7;
     }
 
     return base;
@@ -128,18 +168,33 @@ function createChart(canvas, type, labels, datasets, verticalLines = [], options
     },
   };
 
-  // Merge user options with defaults
-  const chartOptions = {
-    ...LC_CHART_DEFAULTS,
-    ...options
-  };
+  // Build base options — radial charts don't use x/y scales
+  const baseOptions = isRadial
+    ? {
+        responsive: LC_CHART_DEFAULTS.responsive,
+        maintainAspectRatio: LC_CHART_DEFAULTS.maintainAspectRatio,
+        plugins: LC_CHART_DEFAULTS.plugins,
+      }
+    : { ...LC_CHART_DEFAULTS };
 
-  // If user provided custom scales (for dual-axis), merge them in
-  if (options.scales) {
-    chartOptions.scales = {
-      ...LC_CHART_DEFAULTS.scales,
-      ...options.scales
+  // Radar uses a 'r' (radial) scale instead of x/y
+  if (type === 'radar') {
+    baseOptions.scales = {
+      r: {
+        ticks: { color: 'rgba(255,255,255,0.45)', font: { size: 11 }, backdropColor: 'transparent' },
+        grid:  { color: 'rgba(255,255,255,0.12)' },
+        pointLabels: { color: 'rgba(255,255,255,0.7)', font: { size: 12 } },
+        angleLines: { color: 'rgba(255,255,255,0.08)' },
+      },
     };
+  }
+
+  // Merge user options with base
+  const chartOptions = { ...baseOptions, ...options };
+
+  // If user provided custom scales (for dual-axis or radial overrides), merge them in
+  if (options.scales) {
+    chartOptions.scales = { ...(baseOptions.scales || LC_CHART_DEFAULTS.scales), ...options.scales };
   }
 
   return new Chart(canvas, {

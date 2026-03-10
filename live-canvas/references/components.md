@@ -159,6 +159,160 @@ Line chart using Chart.js.
 
 ---
 
+### `chart_pie`
+Pie chart using Chart.js. Each dataset slice gets a color from the default palette.
+
+```json
+{
+  "type": "chart_pie",
+  "id": "traffic-pie",
+  "label": "Traffic Sources",
+  "labels": ["Organic", "Direct", "Referral", "Social"],
+  "datasets": [
+    {
+      "label": "Visits",
+      "data": [4200, 1800, 950, 650],
+      "colors": ["#3ecf8e", "#7fb5ff", "#f5c542", "#ff8888"]
+    }
+  ]
+}
+```
+
+`colors`: optional per-slice color array; defaults to the shared PALETTE.
+
+---
+
+### `chart_doughnut`
+Doughnut (ring) chart. Same format as `chart_pie` but with a hollow center.
+
+```json
+{
+  "type": "chart_doughnut",
+  "id": "storage-doughnut",
+  "label": "Disk Usage",
+  "labels": ["Used", "Free"],
+  "datasets": [
+    {
+      "label": "GB",
+      "data": [340, 160],
+      "colors": ["#ff8888", "#3ecf8e"]
+    }
+  ]
+}
+```
+
+---
+
+### `chart_radar`
+Radar (spider) chart — great for multi-axis comparisons. Automatically fills the area with a semi-transparent color.
+
+```json
+{
+  "type": "chart_radar",
+  "id": "skills-radar",
+  "label": "Team Skills",
+  "labels": ["Python", "JS", "DevOps", "Security", "ML", "Docs"],
+  "datasets": [
+    {"label": "Alice", "data": [90, 70, 60, 80, 75, 65], "color": "#3ecf8e"},
+    {"label": "Bob",   "data": [65, 85, 80, 55, 50, 70], "color": "#7fb5ff", "fill": false}
+  ]
+}
+```
+
+`fill`: `true` (default for radar) fills the polygon area.
+
+---
+
+### `chart_polar`
+Polar area chart — like a pie chart but each slice has the same angle, differing by radius.
+
+```json
+{
+  "type": "chart_polar",
+  "id": "category-polar",
+  "label": "Category Coverage",
+  "labels": ["Frontend", "Backend", "Testing", "Docs", "Design"],
+  "datasets": [
+    {
+      "label": "Coverage %",
+      "data": [85, 72, 60, 45, 90],
+      "colors": ["#3ecf8e", "#7fb5ff", "#f5c542", "#ff8888", "#c084fc"]
+    }
+  ]
+}
+```
+
+---
+
+### `chart_bubble`
+Bubble chart for 3-dimensional data. Each point carries `x`, `y`, and `r` (radius in pixels).
+
+```json
+{
+  "type": "chart_bubble",
+  "id": "perf-bubble",
+  "label": "Service Performance",
+  "datasets": [
+    {
+      "label": "API Gateway",
+      "color": "#3ecf8e",
+      "data": [
+        {"x": 10, "y": 95, "r": 12},
+        {"x": 25, "y": 88, "r": 18},
+        {"x": 40, "y": 76, "r": 8}
+      ]
+    },
+    {
+      "label": "Auth Service",
+      "color": "#7fb5ff",
+      "data": [
+        {"x": 5,  "y": 99, "r": 6},
+        {"x": 30, "y": 82, "r": 20}
+      ]
+    }
+  ]
+}
+```
+
+`x` = axis value, `y` = axis value, `r` = bubble radius (pixels, not data units).
+
+---
+
+### `chart_scatter`
+Scatter / XY plot. Each point is `{"x": <number>, "y": <number>}`.
+
+```json
+{
+  "type": "chart_scatter",
+  "id": "latency-scatter",
+  "label": "Latency vs Load",
+  "datasets": [
+    {
+      "label": "Region A",
+      "color": "#3ecf8e",
+      "data": [
+        {"x": 10, "y": 22},
+        {"x": 30, "y": 45},
+        {"x": 50, "y": 68},
+        {"x": 70, "y": 95}
+      ]
+    },
+    {
+      "label": "Region B",
+      "color": "#f5c542",
+      "data": [
+        {"x": 10, "y": 18},
+        {"x": 30, "y": 35},
+        {"x": 50, "y": 55},
+        {"x": 70, "y": 80}
+      ]
+    }
+  ]
+}
+```
+
+---
+
 ### `metric`
 Big number with label and optional trend.
 

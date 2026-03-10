@@ -49,8 +49,14 @@ c.render(components)
 - `divider` — Horizontal separator
 
 ### Charts (Data Visualization)
-- **`chart_line`** — Line charts
-- **`chart_bar`** — Bar charts
+- **`chart_line`** — Line charts (time series, trends)
+- **`chart_bar`** — Bar charts (comparisons)
+- **`chart_pie`** — Pie charts (proportions)
+- **`chart_doughnut`** — Doughnut charts (proportions with hollow center)
+- **`chart_radar`** — Radar / spider charts (multi-axis comparisons)
+- **`chart_polar`** — Polar area charts (category coverage)
+- **`chart_bubble`** — Bubble charts (3D: x, y, size)
+- **`chart_scatter`** — Scatter / XY plots (correlations)
 
 ### Interactive
 - `button` — Clickable buttons with callbacks
@@ -80,9 +86,9 @@ c.render(components)
 
 ## Chart Components (Important!)
 
-### Correct Format for `chart_line` and `chart_bar`
+### Correct Format for all chart types
 
-**✅ CORRECT** — Use `labels` and `datasets`:
+**✅ CORRECT** — Use `labels` and `datasets` (applies to line, bar, pie, doughnut, radar, polar):
 ```python
 {
     "type": "chart_line",
@@ -94,6 +100,20 @@ c.render(components)
             "data": [60.0, 62.5, 65.0, 68.0],
             "color": "#ef4444",
             "fill": False
+        }
+    ]
+}
+```
+
+**Scatter / Bubble** — use `{x, y}` or `{x, y, r}` point objects instead of a numeric array:
+```python
+{
+    "type": "chart_scatter",
+    "title": "Latency vs Load",
+    "datasets": [
+        {
+            "label": "Region A",
+            "data": [{"x": 10, "y": 22}, {"x": 30, "y": 45}]
         }
     ]
 }
@@ -111,12 +131,35 @@ c.render(components)
 ```
 
 ### Dataset Properties
+
+#### Standard charts (line, bar, radar)
 | Property | Type | Default | Notes |
 |----------|------|---------|-------|
 | `label` | string | `Series 1` | Legend label |
 | `data` | number[] | `[]` | **REQUIRED** — actual data points |
 | `color` | string | Auto-assigned | Hex color (e.g., `#ef4444`) |
-| `fill` | boolean | `false` | Fill area under line (line charts only) |
+| `fill` | boolean | `false` (line) / `true` (radar) | Fill area under line |
+
+#### Radial charts (pie, doughnut, polar)
+| Property | Type | Default | Notes |
+|----------|------|---------|-------|
+| `label` | string | `Series 1` | Legend label |
+| `data` | number[] | `[]` | **REQUIRED** — one value per slice |
+| `colors` | string[] | Auto PALETTE | Per-slice color array |
+
+#### Bubble charts
+| Property | Type | Default | Notes |
+|----------|------|---------|-------|
+| `label` | string | `Series 1` | Legend label |
+| `data` | `{x,y,r}`[] | `[]` | `r` = bubble radius in pixels |
+| `color` | string | Auto-assigned | Hex color |
+
+#### Scatter charts
+| Property | Type | Default | Notes |
+|----------|------|---------|-------|
+| `label` | string | `Series 1` | Legend label |
+| `data` | `{x,y}`[] | `[]` | x/y coordinate pairs |
+| `color` | string | Auto-assigned | Hex color |
 
 ### Colors (Palette)
 Pre-defined colors: `#3ecf8e`, `#f5c542`, `#7fb5ff`, `#ff8888`, `#c084fc`, `#34d399`, `#fb923c`, `#60a5fa`
