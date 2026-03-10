@@ -3,6 +3,15 @@
  * Depends on: Highcharts (loaded via CDN before this file)
  */
 
+// Set Highcharts options for demo/non-commercial use
+if (typeof Highcharts !== 'undefined') {
+  Highcharts.setOptions({
+    credits: {
+      enabled: false
+    }
+  });
+}
+
 const HC_PALETTE = [
   '#3ecf8e', '#f5c542', '#7fb5ff', '#ff8888',
   '#c084fc', '#34d399', '#fb923c', '#60a5fa',
