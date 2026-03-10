@@ -56,6 +56,10 @@ function _dispatch(comp) {
     case 'chart_polar':    return _renderChart(comp, 'polarArea');
     case 'chart_bubble':   return _renderXYChart(comp, 'bubble');
     case 'chart_scatter':  return _renderXYChart(comp, 'scatter');
+    case 'hc_pie':      return _renderHighchartsPie(comp);
+    case 'hc_gauge':    return _renderHighchartsGauge(comp);
+    case 'hc_line':     return _renderHighchartsLine(comp);
+    case 'hc_bar':      return _renderHighchartsBar(comp);
     case 'sankey':      return _renderSankey(comp);
     case 'metric':      return _renderMetric(comp);
     case 'progress':    return _renderProgress(comp);
@@ -315,6 +319,119 @@ function _renderXYChart(comp, defaultType) {
   return wrap;
 }
 
+// ── Highcharts charts ────────────────────────────────────────────────────────
+
+function _renderHighchartsPie(comp) {
+  const wrap = document.createElement('div');
+  wrap.className = 'glass-panel';
+  _storeComp(wrap, comp);
+
+  if (comp.label || comp.title) {
+    const h = document.createElement('div');
+    h.style.cssText = 'font-weight:600;font-size:13px;color:var(--text-muted);margin-bottom:12px;';
+    h.textContent = comp.label || comp.title;
+    wrap.appendChild(h);
+  }
+
+  const container = document.createElement('div');
+  container.style.minHeight = '300px';
+  wrap.appendChild(container);
+
+  setTimeout(() => {
+    createHighchartsPie(container, {
+      title: comp.title || '',
+      data: comp.data || [],
+      colors: comp.colors
+    });
+  }, 50);
+
+  return wrap;
+}
+
+function _renderHighchartsGauge(comp) {
+  const wrap = document.createElement('div');
+  wrap.className = 'glass-panel';
+  _storeComp(wrap, comp);
+
+  if (comp.label || comp.title) {
+    const h = document.createElement('div');
+    h.style.cssText = 'font-weight:600;font-size:13px;color:var(--text-muted);margin-bottom:12px;';
+    h.textContent = comp.label || comp.title;
+    wrap.appendChild(h);
+  }
+
+  const container = document.createElement('div');
+  container.style.minHeight = '300px';
+  wrap.appendChild(container);
+
+  setTimeout(() => {
+    createHighchartsGauge(container, {
+      title: comp.title || '',
+      value: comp.value || 0,
+      bands: comp.bands
+    });
+  }, 50);
+
+  return wrap;
+}
+
+function _renderHighchartsLine(comp) {
+  const wrap = document.createElement('div');
+  wrap.className = 'glass-panel';
+  _storeComp(wrap, comp);
+
+  if (comp.label || comp.title) {
+    const h = document.createElement('div');
+    h.style.cssText = 'font-weight:600;font-size:13px;color:var(--text-muted);margin-bottom:12px;';
+    h.textContent = comp.label || comp.title;
+    wrap.appendChild(h);
+  }
+
+  const container = document.createElement('div');
+  container.style.minHeight = '300px';
+  wrap.appendChild(container);
+
+  setTimeout(() => {
+    createHighchartsLine(container, {
+      title: comp.title || '',
+      labels: comp.labels || [],
+      series: comp.series || [],
+      yAxisTitle: comp.yAxisTitle,
+      dataLabels: comp.dataLabels
+    });
+  }, 50);
+
+  return wrap;
+}
+
+function _renderHighchartsBar(comp) {
+  const wrap = document.createElement('div');
+  wrap.className = 'glass-panel';
+  _storeComp(wrap, comp);
+
+  if (comp.label || comp.title) {
+    const h = document.createElement('div');
+    h.style.cssText = 'font-weight:600;font-size:13px;color:var(--text-muted);margin-bottom:12px;';
+    h.textContent = comp.label || comp.title;
+    wrap.appendChild(h);
+  }
+
+  const container = document.createElement('div');
+  container.style.minHeight = '300px';
+  wrap.appendChild(container);
+
+  setTimeout(() => {
+    createHighchartsBar(container, {
+      title: comp.title || '',
+      labels: comp.labels || [],
+      series: comp.series || [],
+      yAxisTitle: comp.yAxisTitle,
+      dataLabels: comp.dataLabels
+    });
+  }, 50);
+
+  return wrap;
+}
 
 function _renderMetric(comp) {
   const wrap = document.createElement('div');
