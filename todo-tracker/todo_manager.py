@@ -120,6 +120,42 @@ class TodoManager:
         active_file.write_text(content)
         return True
 
+    def update_todo(self, description: str, new_due: Optional[str] = None, new_notes: Optional[str] = None) -> bool:
+        """Update due date and/or notes of an ACTIVE todo. new_due must be MM/DD/YYYY."""
+        active_file = self.active_dir / description
+        if not active_file.exists():
+            return False
+        content = active_file.read_text()
+        # Preserve labels
+        labels = []
+        label_match = re.search(r'\{([^}]+)\}', content)
+        if label_match:
+            labels = [l.strip() for l in label_match.group(1).split(',')]
+        # Rebuild file from scratch
+        new_content = ""
+        if new_due:
+            new_content += f"(due {new_due})\n"
+        elif re.search(r'\(due [^)]+\)', content):
+            # Keep existing due date if not being changed
+            existing_due = re.search(r'\(due ([^)]+)\)', content).group(0)
+            new_content += existing_due + "\n"
+        if labels:
+            new_content += "{" + ",".join(labels) + "}\n"
+        if new_notes is not None:
+            if new_notes.strip():
+                new_content += new_notes.strip() + "\n"
+        else:
+            # Keep existing notes (lines that aren't metadata)
+            for line in content.splitlines():
+                stripped = line.strip()
+                if (re.match(r'\(due [^)]+\)', stripped) or
+                        re.match(r'\{[^}]+\}', stripped) or
+                        re.match(r'DUE:\s*[\d\-]+', stripped)):
+                    continue
+                new_content += line + "\n"
+        active_file.write_text(new_content.strip())
+        return True
+
     def complete_todo(self, description: str) -> bool:
         """Move a TODO from ACTIVE to COMPLETED, stamping completion date."""
         active_file = self.active_dir / description
