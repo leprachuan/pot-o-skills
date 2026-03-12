@@ -101,6 +101,25 @@ class TodoManager:
 
         todo_file.write_text(content.strip())
 
+    def reschedule_todo(self, description: str, new_due: str) -> bool:
+        """Update the due date of an ACTIVE todo. new_due must be MM/DD/YYYY."""
+        active_file = self.active_dir / description
+        if not active_file.exists():
+            return False
+        content = active_file.read_text()
+        # Replace existing (due ...) pattern
+        new_due_tag = f"(due {new_due})"
+        if re.search(r'\(due [^)]+\)', content):
+            content = re.sub(r'\(due [^)]+\)', new_due_tag, content)
+        elif re.search(r'DUE:\s*[\d-]+', content):
+            # Convert DUE: YYYY-MM-DD style to standard (due MM/DD/YYYY)
+            content = re.sub(r'DUE:\s*[\d-]+', new_due_tag, content)
+        else:
+            # No existing due date — prepend it
+            content = new_due_tag + "\n" + content
+        active_file.write_text(content)
+        return True
+
     def complete_todo(self, description: str) -> bool:
         """Move a TODO from ACTIVE to COMPLETED, stamping completion date."""
         active_file = self.active_dir / description
