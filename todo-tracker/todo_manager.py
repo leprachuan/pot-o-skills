@@ -102,11 +102,14 @@ class TodoManager:
         todo_file.write_text(content.strip())
 
     def complete_todo(self, description: str) -> bool:
-        """Move a TODO from ACTIVE to COMPLETED."""
+        """Move a TODO from ACTIVE to COMPLETED, stamping completion date."""
         active_file = self.active_dir / description
         if active_file.exists():
+            content = active_file.read_text().rstrip()
+            completed_date = datetime.now().strftime("%Y-%m-%d")
+            content = content + f"\n\nCOMPLETED: {completed_date}\n"
             completed_file = self.completed_dir / description
-            completed_file.write_text(active_file.read_text())
+            completed_file.write_text(content)
             active_file.unlink()
             return True
         return False
