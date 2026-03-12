@@ -24,7 +24,8 @@ class TodoManager:
         else:
             # Auto-detect standard locations
             possible_locations = [
-                Path("/opt/fosterbot-home/TODOs"),
+                Path("/opt/fosterbot-home/TODOs"),                          # flipkey-cli (LXC container)
+                Path.home() / "PycharmProjects" / "notes_and_code" / "TODOs",  # MacBook
                 Path.home() / "Documents" / "TODOs",
                 Path.home() / "TODOs",
             ]
