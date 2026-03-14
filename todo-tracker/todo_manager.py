@@ -62,7 +62,7 @@ class TodoManager:
         return todos
 
     def _parse_todo_file(self, file_path: Path, completed: bool) -> Dict:
-        """Parse a TODO file and extract metadata."""
+        """Parse a TODO file and extract metadata (supports both WebUI and legacy formats)."""
         description = file_path.name
         content = file_path.read_text().strip() if file_path.exists() else ""
 
@@ -72,32 +72,68 @@ class TodoManager:
             'section': 'Completed' if completed else 'Active',
             'due': None,
             'labels': [],
-            'notes': content,
+            'notes': '',
         }
 
-        # Parse due date from content: (due YYYY-MM-DD) or (due YYYY-MM-DD HH:MM:SS)
-        due_match = re.search(r'\(due ([^\)]+)\)', content)
-        if due_match:
-            todo['due'] = due_match.group(1)
+        lines = content.split('\n')
+        notes_lines = []
 
-        # Parse labels from content: {LABEL1,LABEL2}
-        label_match = re.search(r'\{([^}]+)\}', content)
-        if label_match:
-            todo['labels'] = label_match.group(1).split(',')
+        for line in lines:
+            line = line.strip()
+
+            # Parse WebUI format: DUE: YYYY-MM-DD HH:MM
+            if line.startswith('DUE:'):
+                todo['due'] = line.replace('DUE:', '').strip()
+            # Parse WebUI format: LABELS: {LABEL1},{LABEL2}
+            elif line.startswith('LABELS:'):
+                labels_str = line.replace('LABELS:', '').strip()
+                label_match = re.search(r'\{([^}]+)\}', labels_str)
+                if label_match:
+                    todo['labels'] = [l.strip() for l in label_match.group(1).split(',')]
+            # Parse DETAILS: or other metadata
+            elif line.startswith('DETAILS:'):
+                notes_lines.append(line.replace('DETAILS:', '').strip())
+            # Legacy format: (due ...)
+            elif line.startswith('(due'):
+                due_match = re.search(r'\(due ([^\)]+)\)', line)
+                if due_match:
+                    todo['due'] = due_match.group(1)
+            # Legacy format: {LABEL1,LABEL2}
+            elif line.startswith('{') and line.endswith('}'):
+                label_match = re.search(r'\{([^}]+)\}', line)
+                if label_match:
+                    todo['labels'] = [l.strip() for l in label_match.group(1).split(',')]
+            # Collect remaining lines as notes
+            elif line and not line.startswith('ITEMS') and not line.startswith('RESEARCH'):
+                notes_lines.append(line)
+
+        # Join remaining lines as notes
+        if notes_lines:
+            todo['notes'] = '\n'.join(notes_lines)
 
         return todo
 
     def add_todo(self, description: str, due: Optional[str] = None, labels: Optional[List[str]] = None, notes: Optional[str] = None) -> None:
-        """Add a new TODO as a file in ACTIVE directory."""
+        """Add a new TODO as a file in ACTIVE directory using WebUI format."""
         todo_file = self.active_dir / description
         content = ""
 
+        # WebUI format: DUE: YYYY-MM-DD HH:MM
         if due:
-            content += f"(due {due})\n"
+            # Convert various date formats to DUE: YYYY-MM-DD HH:MM format
+            due_str = due.strip()
+            # If no time provided, default to 10:00
+            if ' ' not in due_str:
+                due_str = f"{due_str} 10:00"
+            content += f"DUE: {due_str}\n"
+
+        # WebUI format: LABELS: {LABEL1},{LABEL2}
         if labels:
-            content += f"{{{','.join(labels)}}}\n"
+            content += f"LABELS: {{{','.join(labels)}}}\n"
+
+        # Add notes/details if provided
         if notes:
-            content += f"{notes}\n"
+            content += f"\nDETAILS: {notes}\n"
 
         todo_file.write_text(content.strip())
 

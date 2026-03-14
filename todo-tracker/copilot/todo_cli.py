@@ -100,7 +100,7 @@ def main():
     # Add command
     add_parser = subparsers.add_parser('add', help='Add a TODO')
     add_parser.add_argument('description', help='TODO description')
-    add_parser.add_argument('--due', help='Due date (YYYY-MM-DD or YYYY-MM-DD HH:MM:SS)')
+    add_parser.add_argument('--due', help='Due date in format YYYY-MM-DD (defaults to 10:00 if no time given) or YYYY-MM-DD HH:MM')
     add_parser.add_argument('--labels', help='Labels (comma-separated)')
     add_parser.add_argument('--notes', help='Additional notes')
     add_parser.set_defaults(func=cmd_add)
