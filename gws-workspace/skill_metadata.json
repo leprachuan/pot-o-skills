@@ -1,0 +1,38 @@
+{
+  "name": "gws-workspace",
+  "version": "1.0.0",
+  "description": "Interact with all Google Workspace services via the official gws CLI — Drive, Gmail, Calendar, Docs, Sheets, Tasks, Chat, Forms, Keep, Meet, People, Classroom, and cross-service Workflows.",
+  "author": "fosterbot",
+  "tags": ["google", "workspace", "drive", "gmail", "calendar", "docs", "sheets", "tasks", "chat", "productivity"],
+  "runtimes": ["claude", "copilot", "gemini"],
+  "requirements": {
+    "node": ">=18.0.0",
+    "npm_packages": ["@googleworkspace/cli"],
+    "external": ["Google Cloud project with OAuth 2.0 Desktop App credentials", "Target Google Workspace APIs enabled in GCP project"]
+  },
+  "triggers": [
+    "google workspace",
+    "gws",
+    "google drive",
+    "google calendar",
+    "gmail",
+    "google docs",
+    "google sheets",
+    "google tasks",
+    "google chat",
+    "google forms",
+    "google keep"
+  ],
+  "capabilities": [
+    "List, upload, download, share Google Drive files",
+    "Send, read, reply, forward Gmail messages",
+    "Create, list, update Google Calendar events",
+    "Create and edit Google Docs",
+    "Read and write Google Sheets",
+    "Manage Google Tasks and task lists",
+    "Send messages to Google Chat spaces",
+    "Read Google Forms responses",
+    "Manage Google Keep notes",
+    "Cross-service workflow automation"
+  ]
+}
