@@ -143,16 +143,14 @@ class TodoManager:
         if not active_file.exists():
             return False
         content = active_file.read_text()
-        # Replace existing (due ...) pattern
-        new_due_tag = f"(due {new_due})"
-        if re.search(r'\(due [^)]+\)', content):
-            content = re.sub(r'\(due [^)]+\)', new_due_tag, content)
-        elif re.search(r'DUE:\s*[\d-]+', content):
-            # Convert DUE: YYYY-MM-DD style to standard (due MM/DD/YYYY)
-            content = re.sub(r'DUE:\s*[\d-]+', new_due_tag, content)
+        # Replace existing due date in any format with new DUE: format
+        if re.search(r'DUE:\s*\S+', content):
+            content = re.sub(r'DUE:\s*\S+', f"DUE: {new_due}", content)
+        elif re.search(r'\(due [^)]+\)', content):
+            content = re.sub(r'\(due [^)]+\)', f"DUE: {new_due}", content)
         else:
             # No existing due date — prepend it
-            content = new_due_tag + "\n" + content
+            content = f"DUE: {new_due}\n" + content
         active_file.write_text(content)
         return True
 
@@ -167,16 +165,17 @@ class TodoManager:
         label_match = re.search(r'\{([^}]+)\}', content)
         if label_match:
             labels = [l.strip() for l in label_match.group(1).split(',')]
-        # Rebuild file from scratch
+        # Rebuild file from scratch using DUE:/LABELS: format
         new_content = ""
         if new_due:
-            new_content += f"(due {new_due})\n"
-        elif re.search(r'\(due [^)]+\)', content):
-            # Keep existing due date if not being changed
-            existing_due = re.search(r'\(due ([^)]+)\)', content).group(0)
-            new_content += existing_due + "\n"
+            new_content += f"DUE: {new_due}\n"
+        else:
+            # Keep existing due date in new format
+            existing = re.search(r'DUE:\s*(\S+)', content) or re.search(r'\(due ([^)]+)\)', content)
+            if existing:
+                new_content += f"DUE: {existing.group(1)}\n"
         if labels:
-            new_content += "{" + ",".join(labels) + "}\n"
+            new_content += f"LABELS: {{{','.join(labels)}}}\n"
         if new_notes is not None:
             if new_notes.strip():
                 new_content += new_notes.strip() + "\n"
@@ -186,7 +185,8 @@ class TodoManager:
                 stripped = line.strip()
                 if (re.match(r'\(due [^)]+\)', stripped) or
                         re.match(r'\{[^}]+\}', stripped) or
-                        re.match(r'DUE:\s*[\d\-]+', stripped)):
+                        re.match(r'DUE:\s*\S+', stripped) or
+                        re.match(r'LABELS:\s*\S+', stripped)):
                     continue
                 new_content += line + "\n"
         active_file.write_text(new_content.strip())

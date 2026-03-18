@@ -83,7 +83,7 @@ TODOs are stored as individual files in ACTIVE/ and COMPLETED/ directories:
 │   ├── 🐛 Investigate Claude session ID handling for 404 errors
 │   ├── 📏 Measure all rooms
 │   ├── 💰 Taxes due end of March
-│   └── 🎒 Purchase Italy Travel Gear (due 04/08/2026)
+│   └── 🎒 Purchase Italy Travel Gear
 └── COMPLETED/
     ├── ✅ Auto-Runtime
     ├── ✅ Proactive Watchers - Poll to trigger AI

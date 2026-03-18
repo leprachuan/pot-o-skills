@@ -112,21 +112,23 @@ ACTIVE/Buy groceries
 ```
 ACTIVE/Deploy app
 File contents:
-(due 03/14/2026 09:00:00)
+DUE: 03/14/2026 09:00:00
 ```
 
 **TODO with Labels:**
 ```
 ACTIVE/Deploy app
 File contents:
-(due 03/14/2026 09:00:00) {WORK,URGENT}
+DUE: 03/14/2026 09:00:00
+LABELS: {WORK,URGENT}
 ```
 
 **TODO with Notes:**
 ```
 ACTIVE/Deploy app
 File contents:
-(due 03/14/2026 09:00:00) {WORK,URGENT}
+DUE: 03/14/2026 09:00:00
+LABELS: {WORK,URGENT}
 Test on staging first
 Notify team 30 min before
 ```
@@ -135,7 +137,7 @@ Notify team 30 min before
 ```
 COMPLETED/Review PR
 File contents:
-(due 03/13/2026)
+DUE: 03/13/2026
 ```
 
 ### Naming Convention
