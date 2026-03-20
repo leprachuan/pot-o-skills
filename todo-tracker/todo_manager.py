@@ -16,8 +16,12 @@ class TodoManager:
 
     def __init__(self):
         """Initialize TodoManager with configurable TODO directory path."""
-        # Allow TODO_DIR to be set via environment variable
-        todo_dir = os.environ.get("TODO_DIR", "")
+        # Priority 1: agents.json todo_dir for the current agent
+        todo_dir = self._get_todo_dir_from_agents_json()
+
+        # Priority 2: TODO_DIR environment variable
+        if not todo_dir:
+            todo_dir = os.environ.get("TODO_DIR", "")
 
         if todo_dir:
             self.todo_dir = Path(todo_dir)
@@ -42,6 +46,34 @@ class TodoManager:
         self.completed_dir = self.todo_dir / "COMPLETED"
         self.active_dir.mkdir(parents=True, exist_ok=True)
         self.completed_dir.mkdir(parents=True, exist_ok=True)
+
+    def _get_todo_dir_from_agents_json(self) -> str:
+        """Look up todo_dir from agents.json for the current AGENT_NAME. Fails silently."""
+        import json
+        agent_name = os.environ.get("AGENT_NAME", "")
+        if not agent_name:
+            return ""
+
+        agents_json_paths = [
+            os.environ.get("AGENTS_JSON", ""),
+            "/opt/n8n-copilot-shim-dev/agents.json",
+            "/opt/n8n-copilot-shim/agents.json",
+            "/opt/agents.json",
+        ]
+
+        for path in agents_json_paths:
+            if not path:
+                continue
+            try:
+                with open(path) as f:
+                    data = json.load(f)
+                for agent in data.get("agents", []):
+                    if agent.get("name") == agent_name:
+                        return agent.get("todo_dir", "")
+            except (OSError, json.JSONDecodeError, KeyError):
+                continue
+
+        return ""
 
     def load_todos(self) -> List[Dict]:
         """Load TODOs from individual files in ACTIVE/ and COMPLETED/ directories."""
