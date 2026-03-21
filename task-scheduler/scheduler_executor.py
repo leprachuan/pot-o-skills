@@ -421,13 +421,19 @@ class TaskSchedulerExecutor:
                 except ValueError:
                     return None
 
-        # Handle "every X minutes/hours/days" format
+        # Handle "every X minutes/hours/days" format or "every <unit>" format (defaults to 1)
         if schedule.startswith("every "):
             parts = schedule[6:].split()
-            if len(parts) >= 2:
+            if len(parts) >= 1:
                 try:
-                    amount = int(parts[0])
-                    unit = parts[1].rstrip('s')
+                    # Try to parse first part as amount, or use 1 if it's a unit
+                    if parts[0].isdigit():
+                        amount = int(parts[0])
+                        unit = parts[1].rstrip('s') if len(parts) > 1 else None
+                    else:
+                        # First part is the unit itself (e.g., "every hour")
+                        amount = 1
+                        unit = parts[0].rstrip('s')
 
                     if unit == "minute":
                         next_run = now + timedelta(minutes=amount)
@@ -439,7 +445,7 @@ class TaskSchedulerExecutor:
                         return None
 
                     return next_run.isoformat() + "Z"
-                except ValueError:
+                except (ValueError, IndexError):
                     return None
 
         logger.warning(f"Could not parse schedule: {schedule}")
