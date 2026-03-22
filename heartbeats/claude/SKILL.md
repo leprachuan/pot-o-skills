@@ -45,7 +45,7 @@ copilot  (copilot | claude | gemini | opencode)
 ## How to Write a Heartbeat
 
 ```bash
-cat > /opt/n8n-copilot-shim/HEARTBEAT.md << 'EOF'
+cat > /opt/HEARTBEAT.md << 'EOF'
 # Heartbeat Instructions
 
 ## Tasks
@@ -87,7 +87,7 @@ Add a scheduled job to `/opt/n8n-copilot-shim/.task-scheduler/jobs.json` using t
 
 | Agent | Path | HEARTBEAT.md |
 |-------|------|--------------|
-| fosterbot | /opt/n8n-copilot-shim | /opt/n8n-copilot-shim/HEARTBEAT.md |
+| fosterbot | /opt | /opt/HEARTBEAT.md |
 | devops | /opt/MyHomeDevops | /opt/MyHomeDevops/HEARTBEAT.md |
 | family_knowledge | /opt/family_knowledge | /opt/family_knowledge/HEARTBEAT.md |
 | email_triage | /opt/email_triage | /opt/email_triage/HEARTBEAT.md |
