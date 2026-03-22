@@ -2,10 +2,11 @@
 """
 Heartbeat Runner — checks all agent HEARTBEAT.md files and spawns background tasks.
 Runs hourly via task scheduler. Clears HEARTBEAT.md after successful task dispatch.
+
+Agent paths are loaded dynamically from /opt/agents.json — no hardcoded locations.
 """
 
 import os
-import re
 import json
 import urllib.request
 import urllib.error
@@ -14,16 +15,20 @@ import datetime
 
 API_URL = "https://127.0.0.1:8000/api/v1/background-tasks"
 API_TOKEN = "shared_R6R6wReORUV6bouLntScMTowbsh30Rzqa3hzjs3bWgU"
+AGENTS_JSON = os.environ.get("AGENTS_JSON", "/opt/agents.json")
 
-AGENT_ROOTS = {
-    "fosterbot": "/opt/n8n-copilot-shim/HEARTBEAT.md",
-    "email_triage": "/opt/email_triage/HEARTBEAT.md",
-    "family_knowledge": "/opt/family_knowledge/HEARTBEAT.md",
-    "opencode": "/opt/opencode/HEARTBEAT.md",
-    "smart_home": "/opt/smart_home/HEARTBEAT.md",
-    "MyHomeDevops": "/opt/MyHomeDevops/HEARTBEAT.md",
-    "nanocode": "/opt/nanocode/HEARTBEAT.md",
-}
+
+def load_agent_roots(agents_json_path: str) -> dict:
+    """Read agents.json and return {agent_name: /path/to/HEARTBEAT.md}."""
+    with open(agents_json_path, "r") as f:
+        data = json.load(f)
+    roots = {}
+    for agent in data.get("agents", []):
+        name = agent.get("name", "")
+        path = agent.get("path", "").rstrip("/")
+        if name and path:
+            roots[name] = os.path.join(path, "HEARTBEAT.md")
+    return roots
 
 MODEL_MAP = {
     "simple": "claude-haiku-4.5",
@@ -122,11 +127,19 @@ def clear_heartbeat(path: str) -> None:
 def run():
     now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     print(f"[{now}] Heartbeat runner started")
+    print(f"Loading agents from {AGENTS_JSON}")
+    try:
+        agent_roots = load_agent_roots(AGENTS_JSON)
+    except Exception as e:
+        print(f"ERROR: Failed to load {AGENTS_JSON}: {e}")
+        return
+    print(f"Found {len(agent_roots)} agents: {list(agent_roots.keys())}")
+
     spawned = []
     skipped = []
     errors = []
 
-    for agent_name, hb_path in AGENT_ROOTS.items():
+    for agent_name, hb_path in agent_roots.items():
         if not os.path.exists(hb_path):
             skipped.append(f"{agent_name}: file not found ({hb_path})")
             continue
