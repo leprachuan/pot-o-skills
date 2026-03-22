@@ -1,6 +1,6 @@
 ---
 name: heartbeats
-description: Use when you want to schedule work to happen later, remind yourself to follow up on something, or queue a task for the next hour. Write deferred instructions into HEARTBEAT.md — an hourly scheduled task will pick them up, execute them as background tasks, and clear the file. Trigger phrases: "remind me later", "check this in an hour", "do this after", "follow up on", "schedule this for later", "queue this up", "deferred task", "next time you wake up".
+description: Use when you want to schedule work to happen later, remind yourself to follow up on something, or queue a task for the next hour. Write deferred instructions into HEARTBEAT.md — an hourly scheduled task will pick them up, execute them as background tasks, and clear the file. Trigger phrases: "remind me later", "check this in an hour", "do this after", "follow up on", "schedule this for later", "queue this up", "deferred task", "next time you wake up". IMPORTANT: You can and should use this proactively on your own initiative — not just when the user asks. Use it to follow up on background tasks you spawned, verify something completed correctly, check on a deployment, circle back on an open question, or pursue any goal that benefits from a future check-in. Think of it as leaving yourself a note for your next wakeup.
 ---
 
 # Heartbeats — Deferred Agent Instructions
@@ -11,10 +11,20 @@ The agent determines its own heartbeat file location by looking up its name in `
 
 ## When to Use
 
+Use this proactively — you don't need the user to ask. Any time you want to check in on something later, leave yourself a note here.
+
+**User-directed:**
 - Schedule a follow-up action after the current session ends
-- Remind yourself to check something in ~1 hour
+- Remind the user to check something in ~1 hour
 - Queue up research, monitoring, or maintenance tasks
 - Trigger a deferred deployment or automation
+
+**Agent-initiated (your own goals):**
+- Verify a background task you spawned actually completed successfully
+- Check on a deployment or service restart you triggered
+- Follow up on an open question or unresolved issue
+- Monitor something you set in motion and report back
+- Pursue any goal that requires a future check-in without blocking the current session
 
 ## HEARTBEAT.md Format
 
