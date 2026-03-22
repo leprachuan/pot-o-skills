@@ -1,6 +1,6 @@
 ---
 name: heartbeats
-description: Enable agents to write deferred instructions to HEARTBEAT.md for future execution. An hourly scheduled task (scoped to the agent) reads the HEARTBEAT.md from the agent's root directory, spawns background tasks for pending instructions, and clears the file.
+description: Use when you want to schedule work to happen later, remind yourself to follow up on something, or queue a task for the next hour. Write deferred instructions into HEARTBEAT.md — an hourly scheduled task will pick them up, execute them as background tasks, and clear the file. Trigger phrases: "remind me later", "check this in an hour", "do this after", "follow up on", "schedule this for later", "queue this up", "deferred task", "next time you wake up".
 ---
 
 # Heartbeats — Deferred Agent Instructions
