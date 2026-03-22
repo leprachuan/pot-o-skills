@@ -1,9 +1,14 @@
 ---
 name: gws-workspace
+aliases: [google-workspace-cli, google-cli, gws]
 description: Interact with all Google Workspace services via the official gws CLI — Drive, Gmail, Calendar, Docs, Sheets, Slides, Tasks, Chat, Forms, Keep, Meet, People, Classroom, and cross-service Workflows.
+keywords: [google, workspace, drive, gmail, calendar, docs, sheets, cli, productivity, automation]
+searchable: ["google cli", "google drive cli", "gmail cli", "calendar cli", "google workspace api"]
 ---
 
-# GWS — Google Workspace CLI Skill
+# 🔧 GWS — Google Workspace CLI Skill
+
+**Unified command-line interface for all Google Workspace APIs.** Manage Gmail, Drive, Calendar, Docs, Sheets, and more from the CLI.
 
 Unified command-line interface for all Google Workspace APIs. Uses the official
 `@googleworkspace/cli` npm package (binary: `gws`), which reads Google's Discovery

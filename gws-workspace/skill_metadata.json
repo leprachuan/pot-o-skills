@@ -1,5 +1,6 @@
 {
   "name": "gws-workspace",
+  "aliases": ["google-workspace-cli", "google-cli", "gws"],
   "version": "1.0.0",
   "description": "Interact with all Google Workspace services via the official gws CLI — Drive, Gmail, Calendar, Docs, Sheets, Tasks, Chat, Forms, Keep, Meet, People, Classroom, and cross-service Workflows.",
   "author": "fosterbot",

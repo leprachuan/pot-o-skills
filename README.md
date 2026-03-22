@@ -10,9 +10,10 @@ pot-o-skills provides comprehensive automation skills for enterprise platforms a
 
 | Skill | Purpose | Status |
 |-------|---------|--------|
+| **[Google Workspace CLI](./gws-workspace/)** | Unified interface for Gmail, Drive, Calendar, Sheets, Docs, and all Workspace APIs | ✅ Production Ready |
 | **[Cisco Meraki](./cisco-meraki/)** | Cloud networking, WiFi, switches, firewalls, device management | ✅ Production Ready |
 | **[Cisco Security Cloud Control](./cisco-security-cloud-control/)** | Organization management, firewall policies, threat detection | ✅ Production Ready |
-| **[Live Canvas](./live-canvas/)** | Interactive visual canvas for progress boards, dashboards, forms, and plan approval flows | 🆕 Released on `main` (`v1.0.0`) |
+| **[Live Canvas](./live-canvas/)** | Interactive visual canvas for progress boards, dashboards, forms, and plan approval flows | ✅ Production Ready |
 
 ## Canvas Release Information
 
@@ -82,6 +83,25 @@ cp .env.example .env
 ```
 
 ## Skills
+
+### 🔧 Google Workspace CLI (gws-workspace)
+**Unified command-line interface for all Google Workspace services.**
+
+Access the full documentation in [`gws-workspace/SKILL.md`](./gws-workspace/SKILL.md)
+
+**Aliases:** `google-workspace-cli`, `google-cli`, `gws`
+
+**Key Features:**
+- Gmail management (list, send, read, reply emails)
+- Google Drive (list, upload, download, share files)
+- Google Calendar (create, list, update events)
+- Google Sheets & Docs (read, write, edit documents)
+- Google Tasks & Chat (manage tasks, send messages)
+- Dynamic API discovery (auto-updates with Google)
+- Multi-account support (personal + work)
+- Authentication already configured (OAuth credentials stored)
+
+**Status:** ✅ Fully authenticated and ready to use
 
 ### 🌐 Cisco Meraki
 **Network management, monitoring, and configuration across cloud-delivered networking infrastructure.**
