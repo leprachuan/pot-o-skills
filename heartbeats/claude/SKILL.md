@@ -1,20 +1,20 @@
 ---
 name: heartbeats
-description: Enable agents to write deferred instructions to HEARTBEAT.md for future execution. An hourly scheduler checks all agent roots and spawns background tasks for pending instructions. Use when you want to schedule a follow-up action, queue research, or trigger a deferred task.
+description: Enable agents to write deferred instructions to HEARTBEAT.md for future execution. An hourly AI scheduled task reads all agent HEARTBEAT.md files, spawns background tasks for pending instructions, and clears the file. No runner script needed — the scheduler itself is the LLM.
 ---
 
 # Heartbeats — Deferred Agent Instructions
 
-Agents can write instructions into `HEARTBEAT.md` at their agent root for future execution. An hourly runner checks all agent HEARTBEAT.md files. When instructions are found, background tasks are spawned to execute them. After spawning, HEARTBEAT.md is cleared.
+Any agent can write instructions into its `HEARTBEAT.md` file for deferred execution. An hourly scheduled task (an LLM running as fosterbot) reads all agent HEARTBEAT.md files, spawns background tasks for anything pending, then clears the file.
 
-Agent paths are loaded dynamically from `/opt/agents.json` — no hardcoded locations.
+Agent paths come from `/opt/agents.json` — adding a new agent there automatically makes it part of the heartbeat system.
 
 ## When to Use
 
-- Schedule a follow-up action after current session ends
-- Remind self to check something in ~1 hour
-- Queue up research or monitoring tasks
-- Trigger a deferred deployment or maintenance task
+- Schedule a follow-up action after the current session ends
+- Remind yourself to check something in ~1 hour
+- Queue up research, monitoring, or maintenance tasks
+- Trigger a deferred deployment or automation
 
 ## HEARTBEAT.md Format
 
@@ -22,24 +22,27 @@ Agent paths are loaded dynamically from `/opt/agents.json` — no hardcoded loca
 # Heartbeat Instructions
 
 ## Tasks
-- Task description (the runner will spawn a background task for this)
+- Task description — the hourly runner will spawn a background task for this
 - Another deferred task
 
 ## Context
-Any context/notes to pass to the executing agent
+Any notes or context to pass to the executing agent
 
 ## Model Hint
-complex  (or: simple | medium | complex | full model ID like claude-opus-4.6)
+medium  (simple | medium | complex | or a full model ID like claude-opus-4.6)
 
 ## Runtime Hint
-copilot  (or: claude | gemini | opencode)
+copilot  (copilot | claude | gemini | opencode)
 ```
 
-Resolution order for model and runtime:
-1. `## Model Hint` / `## Runtime Hint` in HEARTBEAT.md
-2. `heartbeat.default_model` / `heartbeat.default_runtime` in agents.json for that agent
-3. `HEARTBEAT_DEFAULT_MODEL` / `HEARTBEAT_DEFAULT_RUNTIME` env vars
-4. Built-in defaults: `claude-sonnet-4.6` / `copilot`
+**Model hint mapping (defaults):**
+| Hint | Model |
+|------|-------|
+| `simple` | claude-haiku-4.5 |
+| `medium` | claude-sonnet-4.6 |
+| `complex` | claude-opus-4.6 |
+
+If no hint is given, defaults to `claude-sonnet-4.6` / `copilot`.
 
 ## How to Write a Heartbeat
 
@@ -48,52 +51,22 @@ cat > /opt/n8n-copilot-shim/HEARTBEAT.md << 'EOF'
 # Heartbeat Instructions
 
 ## Tasks
-- Check if the Italy trip TODO backpack was purchased and send a Telegram reminder if not
+- Check if the Italy trip backpack TODO is still open and send a Telegram reminder if so
 
 ## Model Hint
 simple
-
-## Runtime Hint
-copilot
 EOF
 ```
 
-## Per-Agent Configuration (agents.json)
+The next hourly run will pick it up, spawn a `claude-haiku-4.5` background task, and clear the file.
 
-Add a `heartbeat` block to any agent in `/opt/agents.json` to set per-agent defaults:
+## How It Works
 
-```json
-{
-  "name": "fosterbot",
-  "path": "/opt/n8n-copilot-shim",
-  "heartbeat": {
-    "default_model": "claude-sonnet-4.6",
-    "default_runtime": "copilot",
-    "model_map": {
-      "simple": "claude-haiku-4.5",
-      "medium": "claude-sonnet-4.6",
-      "complex": "claude-opus-4.6"
-    }
-  }
-}
-```
+There is no runner script. The scheduled job (`heartbeat-runner` in jobs.json) is an AI task with a prompt that instructs the LLM to:
+1. Read `/opt/agents.json` for agent paths
+2. Check each agent's `HEARTBEAT.md` for pending tasks
+3. Spawn background tasks via the Wee-Orchestrator API
+4. Clear the file after successful dispatch
 
-## Model Hints (built-in defaults)
-
-| Hint | Model |
-|------|-------|
-| `simple` | claude-haiku-4.5 |
-| `medium` | claude-sonnet-4.6 (default) |
-| `complex` | claude-opus-4.6 |
-| *(any model ID)* | used as-is |
-
-## Runner Script
-
-`/opt/pot-o-skills/heartbeats/copilot/heartbeat_runner.py`
-
-Run manually: `python3 /opt/pot-o-skills/heartbeats/copilot/heartbeat_runner.py`
-
-Env var overrides:
-- `AGENTS_JSON` — path to agents.json (default: `/opt/agents.json`)
-- `HEARTBEAT_DEFAULT_MODEL` — global fallback model
-- `HEARTBEAT_DEFAULT_RUNTIME` — global fallback runtime
+Scheduled job location: `/opt/n8n-copilot-shim/.task-scheduler/jobs.json` (id: `heartbeat-runner`)
+Schedule: `0 * * * *` (every hour on the hour)
