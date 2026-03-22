@@ -7,6 +7,8 @@ description: Enable agents to write deferred instructions to HEARTBEAT.md for fu
 
 Agents can write instructions into `HEARTBEAT.md` at their agent root for future execution. An hourly runner checks all agent HEARTBEAT.md files. When instructions are found, background tasks are spawned to execute them. After spawning, HEARTBEAT.md is cleared.
 
+Agent paths are loaded dynamically from `/opt/agents.json` — no hardcoded locations.
+
 ## When to Use
 
 - Schedule a follow-up action after current session ends
@@ -27,13 +29,22 @@ Agents can write instructions into `HEARTBEAT.md` at their agent root for future
 Any context/notes to pass to the executing agent
 
 ## Model Hint
-complex  (or: simple, medium, complex — helps runner pick the right model)
+complex  (or: simple | medium | complex | full model ID like claude-opus-4.6)
+
+## Runtime Hint
+copilot  (or: claude | gemini | opencode)
 ```
+
+Resolution order for model and runtime:
+1. `## Model Hint` / `## Runtime Hint` in HEARTBEAT.md
+2. `heartbeat.default_model` / `heartbeat.default_runtime` in agents.json for that agent
+3. `HEARTBEAT_DEFAULT_MODEL` / `HEARTBEAT_DEFAULT_RUNTIME` env vars
+4. Built-in defaults: `claude-sonnet-4.6` / `copilot`
 
 ## How to Write a Heartbeat
 
 ```bash
-cat > /opt/n8n-copilot-shim/HEARTBEAT.md << EOF
+cat > /opt/n8n-copilot-shim/HEARTBEAT.md << 'EOF'
 # Heartbeat Instructions
 
 ## Tasks
@@ -41,32 +52,48 @@ cat > /opt/n8n-copilot-shim/HEARTBEAT.md << EOF
 
 ## Model Hint
 simple
+
+## Runtime Hint
+copilot
 EOF
 ```
 
-## Agent Roots Map
+## Per-Agent Configuration (agents.json)
 
-| Agent | Root |
-|-------|------|
-| fosterbot | `/opt/n8n-copilot-shim/` |
-| email_triage | `/opt/email_triage/` |
-| family_knowledge | `/opt/family_knowledge/` |
-| opencode | `/opt/opencode/` |
-| smart_home | `/opt/smart_home/` |
-| MyHomeDevops | `/opt/MyHomeDevops/` |
-| nanocode | `/opt/nanocode/` |
+Add a `heartbeat` block to any agent in `/opt/agents.json` to set per-agent defaults:
 
-## Model Hints
+```json
+{
+  "name": "fosterbot",
+  "path": "/opt/n8n-copilot-shim",
+  "heartbeat": {
+    "default_model": "claude-sonnet-4.6",
+    "default_runtime": "copilot",
+    "model_map": {
+      "simple": "claude-haiku-4.5",
+      "medium": "claude-sonnet-4.6",
+      "complex": "claude-opus-4.6"
+    }
+  }
+}
+```
+
+## Model Hints (built-in defaults)
 
 | Hint | Model |
 |------|-------|
-| simple | claude-haiku-4.5 |
-| medium | claude-sonnet-4.6 (default) |
-| complex | claude-opus-4.6 |
+| `simple` | claude-haiku-4.5 |
+| `medium` | claude-sonnet-4.6 (default) |
+| `complex` | claude-opus-4.6 |
+| *(any model ID)* | used as-is |
 
 ## Runner Script
 
-`/opt/foster-skills/heartbeats/copilot/heartbeat_runner.py`
+`/opt/pot-o-skills/heartbeats/copilot/heartbeat_runner.py`
 
-Run manually: `python3 /opt/foster-skills/heartbeats/copilot/heartbeat_runner.py`
+Run manually: `python3 /opt/pot-o-skills/heartbeats/copilot/heartbeat_runner.py`
 
+Env var overrides:
+- `AGENTS_JSON` — path to agents.json (default: `/opt/agents.json`)
+- `HEARTBEAT_DEFAULT_MODEL` — global fallback model
+- `HEARTBEAT_DEFAULT_RUNTIME` — global fallback runtime
