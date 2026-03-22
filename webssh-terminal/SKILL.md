@@ -34,7 +34,7 @@ bash /opt/pot-o-skills/webssh-terminal/scripts/start_webssh.sh --port 8033 --can
 |----------|---------|-------------|
 | `WEBSSH_PORT` | `8022` | Port to bind webssh on |
 | `WEBSSH_BIND` | `0.0.0.0` | Bind address |
-| `CANVAS_HOST` | `100.124.186.75` | Tailscale/public IP for browser URLs |
+| `CANVAS_HOST` | *(required)* | Public/Tailscale IP of the host for browser-accessible URLs |
 | `CANVAS_PORT` | `8000` | Wee Orchestrator API port |
 
 ## Workflow When User Asks for a WebSSH Terminal
@@ -47,9 +47,9 @@ bash /opt/pot-o-skills/webssh-terminal/scripts/start_webssh.sh --port 8033 --can
 ## Connecting to a Host
 
 In the webssh browser UI the user fills in:
-- **Hostname**: target host IP or FQDN (e.g., `192.168.1.100` for the kubuntu dev host)
+- **Hostname**: target host IP or FQDN
 - **Port**: 22 (default SSH)
-- **Username**: e.g., `root`
+- **Username**: the SSH user on the target host
 - **Auth**: select **Private Key** and paste the relevant private key
 
 No passwords or keys are stored. The key is used per-session in the browser only.
@@ -74,9 +74,3 @@ kill $(lsof -ti :8022)
 - For production use, put webssh behind an authenticated reverse proxy
 - Do NOT commit SSH keys, passwords, or host credentials to this skill
 
-## Common Hosts (for reference, not stored here)
-
-| Host | IP | Default User |
-|------|----|--------------|
-| lepbuntu (this host) | 100.124.186.75 | root / flipkey |
-| kubuntu dev | 192.168.1.100 | root |

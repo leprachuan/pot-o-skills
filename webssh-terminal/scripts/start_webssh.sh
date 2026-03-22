@@ -9,14 +9,14 @@
 #   HOST=0.0.0.0
 #
 # Environment:
-#   CANVAS_HOST  — Hostname/IP for browser-accessible URL (default: 100.124.186.75)
+#   CANVAS_HOST  — Hostname/IP for browser-accessible URL (required — set to your public/Tailscale IP)
 #   CANVAS_PORT  — Wee Orchestrator port (default: 8000)
 
 set -euo pipefail
 
 PORT="${WEBSSH_PORT:-8022}"
 BIND_HOST="${WEBSSH_BIND:-0.0.0.0}"
-CANVAS_HOST="${CANVAS_HOST:-100.124.186.75}"
+CANVAS_HOST="${CANVAS_HOST:-localhost}"
 CANVAS_PORT="${CANVAS_PORT:-8000}"
 DO_CANVAS=false
 CANVAS_SESSION=""
@@ -39,6 +39,19 @@ if [[ ! -x "$WSSH_BIN" ]]; then
   WSSH_BIN="$(which wssh)"
 fi
 
+# TLS cert — generated at runtime, stored outside the skill repo (never committed)
+CERT_DIR="${XDG_RUNTIME_DIR:-/tmp}/webssh-certs"
+CERT_FILE="$CERT_DIR/cert.pem"
+KEY_FILE="$CERT_DIR/key.pem"
+if [[ ! -f "$CERT_FILE" || ! -f "$KEY_FILE" ]]; then
+  mkdir -p "$CERT_DIR"
+  chmod 700 "$CERT_DIR"
+  openssl req -x509 -newkey rsa:2048 -keyout "$KEY_FILE" -out "$CERT_FILE" \
+    -days 3650 -nodes -subj "/CN=${CANVAS_HOST}" \
+    -addext "subjectAltName=IP:${CANVAS_HOST},IP:127.0.0.1" 2>/dev/null
+  echo "TLS cert generated at $CERT_DIR"
+fi
+
 # Kill any existing wssh on this port
 if lsof -ti ":$PORT" &>/dev/null; then
   echo "Stopping existing wssh on port $PORT..."
@@ -46,12 +59,15 @@ if lsof -ti ":$PORT" &>/dev/null; then
   sleep 1
 fi
 
-echo "Starting webssh on ${BIND_HOST}:${PORT}..."
+echo "Starting webssh on ${BIND_HOST}:${PORT} (HTTPS)..."
 nohup "$WSSH_BIN" \
   --address="$BIND_HOST" \
   --port="$PORT" \
   --xsrf=false \
+  --debug \
   --origin='*' \
+  --certfile="$CERT_FILE" \
+  --keyfile="$KEY_FILE" \
   >> /tmp/webssh.log 2>&1 &
 
 WSSH_PID=$!
@@ -60,7 +76,7 @@ echo "Access: http://${CANVAS_HOST}:${PORT}"
 
 # Wait for it to be ready
 for i in {1..10}; do
-  if curl -sf "http://127.0.0.1:${PORT}" &>/dev/null; then
+  if curl -sfk "https://127.0.0.1:${PORT}" &>/dev/null; then
     echo "webssh is ready."
     break
   fi
