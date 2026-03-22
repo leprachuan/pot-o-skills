@@ -1,0 +1,8 @@
+{
+  "name": "heartbeats",
+  "version": "1.0.0",
+  "description": "Enable agents to write deferred instructions to HEARTBEAT.md for future execution. An hourly scheduler checks all agent roots and spawns background tasks for any pending instructions.",
+  "author": "fosterbot",
+  "runtimes": ["claude", "copilot", "gemini"],
+  "tags": ["scheduling", "deferred", "automation", "heartbeat"]
+}
