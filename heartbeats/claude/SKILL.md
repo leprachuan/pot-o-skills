@@ -1,13 +1,13 @@
 ---
 name: heartbeats
-description: Enable agents to write deferred instructions to HEARTBEAT.md for future execution. Each agent has its own heartbeat scheduled task — enabling/disabling heartbeats for an agent means adding/removing their job. The scheduled task is an AI prompt that reads the agent's HEARTBEAT.md, spawns background tasks for pending instructions, and clears the file.
+description: Enable agents to write deferred instructions to HEARTBEAT.md for future execution. An hourly scheduled task (scoped to the agent) reads the HEARTBEAT.md from the agent's root directory, spawns background tasks for pending instructions, and clears the file.
 ---
 
 # Heartbeats — Deferred Agent Instructions
 
-Any agent can write instructions into its `HEARTBEAT.md` file. An hourly scheduled task (scoped to that agent) reads the file, spawns background tasks for pending work, and clears it.
+Any agent can write instructions into its `HEARTBEAT.md` for deferred execution. An hourly scheduled task reads the file, spawns background tasks for pending work, then clears it.
 
-**Each agent has its own scheduled task.** Heartbeats are enabled/disabled per agent by adding or removing their job from the task scheduler. The job runs *as* that agent, so it inherits all agent permissions and context.
+The agent determines its own heartbeat file location by looking up its name in `/opt/agents.json` and reading the `path` field. The heartbeat file is always `{agent.path}/HEARTBEAT.md`.
 
 ## When to Use
 
@@ -42,27 +42,11 @@ copilot  (copilot | claude | gemini | opencode)
 | `medium` | claude-sonnet-4.6 (default) |
 | `complex` | claude-opus-4.6 |
 
-## How to Write a Heartbeat
-
-```bash
-cat > /opt/HEARTBEAT.md << 'EOF'
-# Heartbeat Instructions
-
-## Tasks
-- Check if the Italy trip backpack TODO is still open and send a Telegram reminder if so
-
-## Model Hint
-simple
-EOF
-```
-
-The next hourly run for fosterbot will pick it up, spawn a `claude-haiku-4.5` background task, and clear the file.
-
 ---
 
 ## Enabling Heartbeats for an Agent
 
-Add a scheduled job to `/opt/n8n-copilot-shim/.task-scheduler/jobs.json` using this template. Replace `{AGENT_NAME}` and `{HEARTBEAT_PATH}` for each agent.
+Add a scheduled job to `/opt/n8n-copilot-shim/.task-scheduler/jobs.json`. The prompt is identical for every agent — it instructs the LLM to resolve its own path from `agents.json` at runtime.
 
 ```json
 {
@@ -72,7 +56,7 @@ Add a scheduled job to `/opt/n8n-copilot-shim/.task-scheduler/jobs.json` using t
   "runtime": "copilot",
   "model": "claude-haiku-4.5",
   "mode": "ai",
-  "task": "You are the heartbeat runner for the {AGENT_NAME} agent. Check {HEARTBEAT_PATH}/HEARTBEAT.md. If it has any non-empty, non-comment lines under the ## Tasks section: read the full file, check ## Model Hint (simple=claude-haiku-4.5, medium=claude-sonnet-4.6, complex=claude-opus-4.6; default: claude-sonnet-4.6) and ## Runtime Hint (default: copilot), then spawn a background task via POST https://127.0.0.1:8000/api/v1/background-tasks with headers 'Authorization: Bearer <API_SHARED_KEY from /opt/n8n-copilot-shim/.env>' and 'X-Auth-Channel: api', body: {\"prompt\": \"Execute these heartbeat instructions:\\n\\n<file content>\\n\\nSpawn sub-tasks as needed using the best model for each job.\", \"agent\": \"{AGENT_NAME}\", \"runtime\": \"<runtime>\", \"model\": \"<model>\", \"timeout\": 3600}. After a successful spawn, overwrite HEARTBEAT.md with the empty template (# Heartbeat Instructions header, empty ## Tasks / ## Context / ## Model Hint / ## Runtime Hint sections with comment placeholders). If no tasks are pending, do nothing and exit silently.",
+  "task": "You are the heartbeat runner. Determine your agent name from the current session context, then look up your root path in /opt/agents.json by matching the agent name. Read {root}/HEARTBEAT.md. If it has any non-empty, non-comment lines under the ## Tasks section: read the full file, check ## Model Hint (simple=claude-haiku-4.5, medium=claude-sonnet-4.6, complex=claude-opus-4.6; default: claude-sonnet-4.6) and ## Runtime Hint (default: copilot). Read API_SHARED_KEY from /opt/n8n-copilot-shim/.env for the Bearer token. Spawn a background task via POST https://127.0.0.1:8000/api/v1/background-tasks with headers 'Authorization: Bearer <API_SHARED_KEY>' and 'X-Auth-Channel: api', body: {\"prompt\": \"Execute these heartbeat instructions:\\n\\n<file content>\\n\\nSpawn sub-tasks as needed using the best model for each job.\", \"agent\": \"<agent_name>\", \"runtime\": \"<runtime>\", \"model\": \"<model>\", \"timeout\": 3600}. After a successful spawn, overwrite the HEARTBEAT.md with the empty template (# Heartbeat Instructions header, empty ## Tasks / ## Context / ## Model Hint / ## Runtime Hint sections with comment placeholders). If no tasks are pending, do nothing and exit silently.",
   "schedule": "0 * * * *",
   "working_dir": "/opt",
   "notify": false,
@@ -83,28 +67,12 @@ Add a scheduled job to `/opt/n8n-copilot-shim/.task-scheduler/jobs.json` using t
 }
 ```
 
-### Agent path reference (from agents.json)
-
-| Agent | Path | HEARTBEAT.md |
-|-------|------|--------------|
-| fosterbot | /opt | /opt/HEARTBEAT.md |
-| devops | /opt/MyHomeDevops | /opt/MyHomeDevops/HEARTBEAT.md |
-| family_knowledge | /opt/family_knowledge | /opt/family_knowledge/HEARTBEAT.md |
-| email_triage | /opt/email_triage | /opt/email_triage/HEARTBEAT.md |
-| smart_home | /opt/smart_home | /opt/smart_home/HEARTBEAT.md |
-| opencode | /opt/opencode | /opt/opencode/HEARTBEAT.md |
-| nanocode | /opt/nanocode | /opt/nanocode/HEARTBEAT.md |
-
-### Currently enabled
-
-- **fosterbot** — job id: `heartbeat-fosterbot` ✅
+Only `"id"`, `"name"`, and `"agent"` change between agents. The `"task"` prompt is the same for all.
 
 ## Disabling Heartbeats for an Agent
 
-Either set `"enabled": false` on the job, or delete the job entry entirely from jobs.json.
+Set `"enabled": false` on the job, or remove it from `jobs.json` entirely.
 
-## Scheduled Task Location
+## Currently Enabled
 
-`/opt/n8n-copilot-shim/.task-scheduler/jobs.json`
-
-Job IDs follow the pattern: `heartbeat-{agent_name}`
+- **fosterbot** — job id: `heartbeat-fosterbot`
