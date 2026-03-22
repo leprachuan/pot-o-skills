@@ -4,7 +4,7 @@
 # Usage:
 #   start_browser_window.sh --canvas-session SESSION_ID --url URL [--display :99] [--vnc-port 5999] [--novnc-port 6080]
 #
-# Stack: Xvfb → Chromium → x11vnc → websockify (noVNC)
+# Stack: Xvfb → Chrome/Chromium → x11vnc → websockify (noVNC) → Canvas iframe
 #
 # Environment:
 #   CANVAS_HOST   — Hostname/IP for browser-accessible URLs (default: localhost)
@@ -12,11 +12,16 @@
 #   NOVNC_PORT    — noVNC WebSocket proxy port (default: 6080)
 #   VNC_PORT      — x11vnc listen port (default: 5999)
 #   DISPLAY_NUM   — Xvfb display number (default: 99)
-#   BROWSER_BIN   — Browser binary (default: auto-detect chromium-browser or google-chrome)
+#   BROWSER_BIN   — Browser binary (default: auto-detect)
 #   NOVNC_DIR     — noVNC installation directory (default: /opt/noVNC)
 #   RESOLUTION    — Virtual display resolution (default: 1280x900x24)
 
 set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+LOG_FILE="/tmp/browser-window.log"
+
+log() { echo "[$(date '+%H:%M:%S')] $*" | tee -a "$LOG_FILE"; }
 
 # ── Defaults ──────────────────────────────────────────────────────
 CANVAS_HOST="${CANVAS_HOST:-localhost}"
@@ -40,18 +45,18 @@ while [[ $# -gt 0 ]]; do
     --vnc-port)       VNC_PORT="$2"; shift 2 ;;
     --novnc-port)     NOVNC_PORT="$2"; shift 2 ;;
     --stop)
-      echo "Stopping browser window..."
+      log "Stopping browser window..."
       if [[ -f "$PIDFILE" ]]; then
         while read -r pid; do
           kill "$pid" 2>/dev/null || true
         done < "$PIDFILE"
         rm -f "$PIDFILE"
       fi
-      echo "Stopped."
+      log "Stopped."
       exit 0
       ;;
     -h|--help)
-      head -8 "$0" | tail -6
+      head -10 "$0" | tail -8
       exit 0
       ;;
     *) echo "Unknown arg: $1"; exit 1 ;;
@@ -69,7 +74,7 @@ fi
 
 # ── Auto-detect browser ──────────────────────────────────────────
 if [[ -z "$BROWSER_BIN" ]]; then
-  for candidate in chromium-browser google-chrome chromium; do
+  for candidate in google-chrome chromium-browser chromium; do
     if command -v "$candidate" &>/dev/null; then
       BROWSER_BIN="$candidate"
       break
@@ -78,14 +83,36 @@ if [[ -z "$BROWSER_BIN" ]]; then
 fi
 
 if [[ -z "$BROWSER_BIN" ]]; then
-  echo "Error: No browser found. Install chromium-browser or google-chrome."
+  echo "Error: No browser found. Install google-chrome or chromium-browser."
   exit 1
+fi
+
+# ── Install missing dependencies ──────────────────────────────────
+install_if_missing() {
+  local cmd="$1" pkg="$2"
+  if ! command -v "$cmd" &>/dev/null; then
+    log "Installing $pkg..."
+    sudo apt-get install -y "$pkg" >/dev/null 2>&1
+  fi
+}
+
+install_if_missing Xvfb xvfb
+install_if_missing x11vnc x11vnc
+
+if ! command -v websockify &>/dev/null; then
+  log "Installing websockify..."
+  pip3 install websockify >/dev/null 2>&1
+fi
+
+if [[ ! -d "$NOVNC_DIR" ]]; then
+  log "Cloning noVNC to $NOVNC_DIR..."
+  git clone --depth 1 https://github.com/novnc/noVNC "$NOVNC_DIR" >/dev/null 2>&1
 fi
 
 # ── Verify dependencies ──────────────────────────────────────────
 for cmd in Xvfb x11vnc websockify; do
   if ! command -v "$cmd" &>/dev/null; then
-    echo "Error: $cmd not found. Install it first."
+    echo "Error: $cmd not found after install attempt."
     exit 1
   fi
 done
@@ -95,8 +122,8 @@ if [[ ! -d "$NOVNC_DIR" ]]; then
   exit 1
 fi
 
-# ── TLS certificates (reuse webssh certs) ────────────────────────
-CERT_DIR="${XDG_RUNTIME_DIR:-/tmp}/webssh-certs"
+# ── TLS certificates (runtime-only, never committed) ─────────────
+CERT_DIR="${XDG_RUNTIME_DIR:-/tmp}/browser-window-certs"
 CERT_FILE="$CERT_DIR/cert.pem"
 KEY_FILE="$CERT_DIR/key.pem"
 COMBINED_PEM="$CERT_DIR/combined.pem"
@@ -107,7 +134,7 @@ if [[ ! -f "$CERT_FILE" || ! -f "$KEY_FILE" ]]; then
   openssl req -x509 -newkey rsa:2048 -keyout "$KEY_FILE" -out "$CERT_FILE" \
     -days 3650 -nodes -subj "/CN=${CANVAS_HOST}" \
     -addext "subjectAltName=IP:127.0.0.1" 2>/dev/null
-  echo "TLS cert generated at $CERT_DIR"
+  log "TLS cert generated at $CERT_DIR"
 fi
 
 # websockify --cert expects a combined PEM (cert + key)
@@ -121,7 +148,7 @@ cleanup_port() {
   local pids
   pids=$(lsof -ti ":$port" 2>/dev/null || true)
   if [[ -n "$pids" ]]; then
-    echo "Cleaning up existing process on port $port..."
+    log "Cleaning up existing process on port $port..."
     echo "$pids" | xargs kill 2>/dev/null || true
     sleep 1
   fi
@@ -132,7 +159,7 @@ cleanup_port "$NOVNC_PORT"
 
 # Kill any existing Xvfb on this display
 if [[ -f "/tmp/.X${DISPLAY_NUM}-lock" ]]; then
-  echo "Cleaning up existing Xvfb on :${DISPLAY_NUM}..."
+  log "Cleaning up existing Xvfb on :${DISPLAY_NUM}..."
   kill "$(cat /tmp/.X${DISPLAY_NUM}-lock 2>/dev/null | tr -d ' ')" 2>/dev/null || true
   rm -f "/tmp/.X${DISPLAY_NUM}-lock" "/tmp/.X11-unix/X${DISPLAY_NUM}" 2>/dev/null || true
   sleep 1
@@ -142,7 +169,7 @@ fi
 > "$PIDFILE"
 
 # ── Step 1: Start Xvfb ───────────────────────────────────────────
-echo "Starting Xvfb on :${DISPLAY_NUM} (${RESOLUTION})..."
+log "Starting Xvfb on :${DISPLAY_NUM} (${RESOLUTION})..."
 Xvfb ":${DISPLAY_NUM}" -screen 0 "${RESOLUTION}" -ac +extension GLX +render -noreset &
 XVFB_PID=$!
 echo "$XVFB_PID" >> "$PIDFILE"
@@ -152,12 +179,12 @@ if ! kill -0 "$XVFB_PID" 2>/dev/null; then
   echo "Error: Xvfb failed to start"
   exit 1
 fi
-echo "  Xvfb started (PID $XVFB_PID)"
+log "  Xvfb started (PID $XVFB_PID)"
 
 export DISPLAY=":${DISPLAY_NUM}"
 
 # ── Step 2: Start browser ────────────────────────────────────────
-echo "Starting ${BROWSER_BIN} on :${DISPLAY_NUM} → ${URL}..."
+log "Starting ${BROWSER_BIN} on :${DISPLAY_NUM} → ${URL}..."
 "$BROWSER_BIN" \
   --no-sandbox \
   --disable-gpu \
@@ -172,10 +199,10 @@ BROWSER_PID=$!
 echo "$BROWSER_PID" >> "$PIDFILE"
 sleep 2
 
-echo "  Browser started (PID $BROWSER_PID)"
+log "  Browser started (PID $BROWSER_PID)"
 
 # ── Step 3: Start x11vnc ─────────────────────────────────────────
-echo "Starting x11vnc on :${DISPLAY_NUM} → port ${VNC_PORT}..."
+log "Starting x11vnc on :${DISPLAY_NUM} → port ${VNC_PORT}..."
 x11vnc \
   -display ":${DISPLAY_NUM}" \
   -rfbport "$VNC_PORT" \
@@ -185,31 +212,31 @@ x11vnc \
   -noxdamage \
   -cursor arrow \
   -bg \
-  -o /tmp/x11vnc-browser.log
+  -o /tmp/x11vnc.log
 
-echo "  x11vnc started on port $VNC_PORT"
+log "  x11vnc started on port $VNC_PORT"
 
 # ── Step 4: Start noVNC (websockify) ─────────────────────────────
-echo "Starting noVNC websocket proxy on port ${NOVNC_PORT} → VNC ${VNC_PORT}..."
-nohup /opt/noVNC/utils/novnc_proxy \
+log "Starting noVNC websocket proxy on port ${NOVNC_PORT} → VNC ${VNC_PORT}..."
+nohup "$NOVNC_DIR/utils/novnc_proxy" \
   --listen "${NOVNC_PORT}" \
   --vnc "localhost:${VNC_PORT}" \
   --cert "$CERT_FILE" \
   --key "$KEY_FILE" \
   --ssl-only \
   --web "$NOVNC_DIR" \
-  > /tmp/novnc-browser.log 2>&1 &
+  > /tmp/browser-window.log 2>&1 &
 NOVNC_PID=$!
 echo "$NOVNC_PID" >> "$PIDFILE"
 sleep 2
 
-echo "  noVNC proxy started (PID $NOVNC_PID)"
+log "  noVNC proxy started (PID $NOVNC_PID)"
 
 # ── Wait for noVNC to be ready ────────────────────────────────────
-echo "Waiting for noVNC to be ready..."
+log "Waiting for noVNC to be ready..."
 for i in {1..15}; do
   if curl -sfk "https://127.0.0.1:${NOVNC_PORT}" &>/dev/null; then
-    echo "  noVNC is ready."
+    log "  noVNC is ready."
     break
   fi
   sleep 1
@@ -218,7 +245,7 @@ done
 # ── Step 5: Push Wee Canvas iframe ───────────────────────────────
 CANVAS_PY="/opt/n8n-copilot-shim/canvas.py"
 if [[ ! -f "$CANVAS_PY" ]]; then
-  echo "Warning: canvas.py not found — skipping canvas push"
+  log "Warning: canvas.py not found — skipping canvas push"
   echo ""
   echo "noVNC URL: https://${CANVAS_HOST}:${NOVNC_PORT}/vnc.html?autoconnect=true&resize=remote"
   exit 0
@@ -262,7 +289,7 @@ print("Direct noVNC: ${NOVNC_URL}")
 PYEOF
 
 echo ""
-echo "✅ Browser window ready!"
+log "✅ Browser window ready!"
 echo "   noVNC: https://${CANVAS_HOST}:${NOVNC_PORT}/vnc.html?autoconnect=true&resize=remote"
 echo "   Canvas: https://${CANVAS_HOST}:${CANVAS_PORT}/ui/?canvas=${CANVAS_SESSION}"
 echo ""

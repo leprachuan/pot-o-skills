@@ -1,19 +1,20 @@
 ---
 name: webssh-terminal
-description: "Web-based terminal and browser tools for Wee Canvas: remote SSH terminal (WebSSH), local bash terminal (ttyd), and live browser window (noVNC). Embeds interactive panels in Wee Canvas iframes. Use when the user asks for a 'web terminal', 'browser window', 'local terminal', 'browser SSH', 'webssh', or wants to interact with a host through the WebUI canvas."
+description: "Web-based terminal tools for Wee Canvas: remote SSH terminal (WebSSH) and local bash terminal (ttyd). Embeds interactive terminal panels in Wee Canvas iframes. Use when the user asks for a 'web terminal', 'local terminal', 'browser SSH', 'webssh', or wants to interact with a host through the WebUI canvas. For browser windows, see the browser-window skill."
 ---
 
 # WebSSH Terminal Skill
 
-Three web-based tools embedded in Wee Canvas iframes:
+Two web-based terminal tools embedded in Wee Canvas iframes:
 
 | Tool | Script | Port | Purpose |
 |------|--------|------|---------|
 | **WebSSH** (Remote SSH) | `start_webssh.sh` | 8022 | SSH into remote hosts via browser |
 | **Local Terminal** | `start_local_terminal.sh` | 8023 | Local bash shell on the host |
-| **Browser Window** | `start_browser_window.sh` | 6080 | Live browser via noVNC |
 
-All three use HTTPS with self-signed certs (auto-generated at runtime, never committed).
+Both use HTTPS with self-signed certs (auto-generated at runtime, never committed).
+
+> **Note:** The browser window feature (noVNC) has been moved to the standalone **browser-window** skill.
 
 ---
 
@@ -117,68 +118,7 @@ bash start_local_terminal.sh --stop
 
 ---
 
-## 3. Browser Window (noVNC)
-
-Runs a full browser (Chromium) in a virtual framebuffer and streams it to the canvas
-via noVNC. Users can interact with the browser — click, type, scroll — all within
-the Wee Canvas iframe.
-
-### Architecture
-
-```
-Xvfb (:99) → Chromium → x11vnc → websockify/noVNC → Canvas iframe
-```
-
-### Requirements
-
-- `Xvfb`: virtual framebuffer (`sudo apt-get install -y xvfb`)
-- `x11vnc`: X11 to VNC bridge (`sudo apt-get install -y x11vnc`)
-- `chromium-browser` or `google-chrome`
-- noVNC + websockify (noVNC at `/opt/noVNC/`, websockify via pip)
-
-### Quick Start
-
-```bash
-# Open Google in a browser window on canvas
-bash /opt/pot-o-skills/webssh-terminal/scripts/start_browser_window.sh \
-  --canvas-session SESSION_ID --url https://www.google.com
-
-# Open a specific URL
-bash /opt/pot-o-skills/webssh-terminal/scripts/start_browser_window.sh \
-  --canvas-session SESSION_ID --url https://github.com
-
-# Custom ports
-bash /opt/pot-o-skills/webssh-terminal/scripts/start_browser_window.sh \
-  --canvas-session SESSION_ID --url https://example.com \
-  --vnc-port 5950 --novnc-port 6090 --display :50
-```
-
-### Environment Variables
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `NOVNC_PORT` | `6080` | noVNC WebSocket proxy port |
-| `VNC_PORT` | `5999` | x11vnc listen port |
-| `DISPLAY_NUM` | `99` | Xvfb display number |
-| `NOVNC_DIR` | `/opt/noVNC` | noVNC installation directory |
-| `RESOLUTION` | `1280x900x24` | Virtual display resolution |
-| `BROWSER_BIN` | *(auto-detect)* | Browser binary path |
-| `CANVAS_HOST` | `localhost` | Public IP for browser URLs |
-| `CANVAS_PORT` | `8000` | Wee Orchestrator API port |
-
-### Manage
-
-```bash
-tail -f /tmp/novnc-browser.log   # noVNC logs
-tail -f /tmp/x11vnc-browser.log  # x11vnc logs
-
-# Stop all components
-bash start_browser_window.sh --stop
-```
-
----
-
-## Workflow: Agent Launches a Terminal/Browser
+## Workflow: Agent Launches a Terminal
 
 1. **Resolve canvas session** — open a new Wee Canvas or reuse the user's active session
 2. **Set CANVAS_HOST** to the host's IP/hostname accessible from the user's browser
@@ -191,8 +131,6 @@ bash start_browser_window.sh --stop
 |------|---------|--------|
 | 8022 | WebSSH (remote SSH) | `start_webssh.sh` |
 | 8023 | ttyd (local terminal) | `start_local_terminal.sh` |
-| 6080 | noVNC (browser window) | `start_browser_window.sh` |
-| 5999 | x11vnc (internal, VNC) | `start_browser_window.sh` |
 
 ## Security Notes
 
@@ -201,6 +139,5 @@ bash start_browser_window.sh --stop
 - `--xsrf=false` and `--origin='*'` are set for iframe embedding — only expose on trusted/VPN networks
 - webssh does NOT persist SSH keys — users supply them per session in the browser
 - ttyd runs as the user who started the script — restrict access to trusted networks
-- noVNC has no built-in auth — rely on network-level access control
 - Do NOT commit SSH keys, passwords, host IPs, or credentials to this skill
 
