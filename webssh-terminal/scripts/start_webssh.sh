@@ -82,14 +82,11 @@ sys.path.insert(0, '/opt/n8n-copilot-shim')
 from canvas import Canvas
 
 c = Canvas(session_id="${CANVAS_SESSION}")
-c.open()
-c.push({
-  "type": "html",
-  "content": """
+html = """
 <div style="display:flex;flex-direction:column;height:100vh;background:#0d1117;font-family:monospace;">
   <div style="padding:10px 16px;background:#161b22;border-bottom:1px solid #30363d;display:flex;align-items:center;gap:12px;">
-    <span style="color:#58a6ff;font-size:14px;font-weight:600;">⚡ WebSSH Terminal</span>
-    <span style="color:#8b949e;font-size:12px;">→ ${CANVAS_HOST}</span>
+    <span style="color:#58a6ff;font-size:14px;font-weight:600;">&#9889; WebSSH Terminal</span>
+    <span style="color:#8b949e;font-size:12px;">&#8594; ${CANVAS_HOST}</span>
   </div>
   <iframe
     src="${WEBSSH_URL}"
@@ -98,7 +95,7 @@ c.push({
   ></iframe>
 </div>
 """
-})
+c.push_html(html, height=800)
 print("Canvas pushed. URL: https://${CANVAS_HOST}:${CANVAS_PORT}/ui/?canvas=${CANVAS_SESSION}")
 PYEOF
 fi
