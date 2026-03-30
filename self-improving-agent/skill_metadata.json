@@ -1,0 +1,51 @@
+{
+  "name": "self-improving-agent",
+  "description": "Local learning-loop skill for capturing errors, corrections, feature requests, and durable lessons in Wee Orchestrator repos.",
+  "version": "1.0.0",
+  "author": "FosterbotHome",
+  "category": "workflow",
+  "is_public": true,
+  "keywords": [
+    "learning",
+    "retrospective",
+    "errors",
+    "feature-requests",
+    "memory",
+    "workflow"
+  ],
+  "intents": [
+    "capture_learning",
+    "log_error",
+    "log_feature_request",
+    "promote_lesson"
+  ],
+  "supported_actions": [
+    "init_workspace",
+    "review_learnings",
+    "log_learning",
+    "log_error",
+    "log_feature_request",
+    "promote_lesson"
+  ],
+  "upstream": {
+    "clawhub_url": "https://clawhub.ai/pskoett/self-improving-agent",
+    "repository": "https://github.com/pskoett/pskoett-ai-skills",
+    "skill_path": "skills/self-improvement",
+    "commit": "636784f35b9bc43b635585f7407a6244c23c7e99",
+    "license_review": "no clear license file found during import; local implementation is an original adaptation"
+  },
+  "runtimes": {
+    "claude": {
+      "type": "prompt_skill",
+      "entry": "SKILL.md"
+    },
+    "copilot": {
+      "type": "prompt_skill",
+      "entry": "SKILL.md"
+    },
+    "gemini": {
+      "type": "prompt_skill",
+      "entry": "SKILL.md"
+    }
+  }
+}
