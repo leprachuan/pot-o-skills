@@ -1,0 +1,65 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Queue Configuration",
+  "description": "Configuration schema for collaborative-work-queue",
+  "type": "object",
+  "required": ["queue", "statuses"],
+  "properties": {
+    "queue": {
+      "type": "object",
+      "required": ["name", "queue_files"],
+      "properties": {
+        "name": { "type": "string", "description": "Queue pipeline name" },
+        "queue_dir": { "type": "string", "description": "Base directory for queue files", "default": "." },
+        "queue_files": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Markdown files containing work queue tables"
+        }
+      }
+    },
+    "lock": {
+      "type": "object",
+      "properties": {
+        "file": { "type": "string", "default": "WORK_QUEUE.lock.json" },
+        "ttl_seconds": { "type": "integer", "default": 7200, "minimum": 60 }
+      }
+    },
+    "statuses": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "transitions_to": { "type": "array", "items": { "type": "string" } },
+          "terminal": { "type": "boolean", "default": false },
+          "move_to_section": { "type": "string" }
+        }
+      }
+    },
+    "roles": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "agent": { "type": "string" },
+          "handles_statuses": { "type": "array", "items": { "type": "string" } },
+          "sets_status_to": { "type": "string" },
+          "max_concurrent": { "type": "integer", "default": 1, "minimum": 1 },
+          "model": { "type": "string", "default": "claude-sonnet-4.6" },
+          "timeout": { "type": "integer", "default": 3600 },
+          "prompt_template": { "type": "string" },
+          "trigger_after": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    },
+    "dispatch": {
+      "type": "object",
+      "properties": {
+        "api_url": { "type": "string", "format": "uri" },
+        "api_token_env": { "type": "string" },
+        "stall_threshold_seconds": { "type": "integer", "default": 7200 },
+        "runtime": { "type": "string", "default": "copilot" }
+      }
+    }
+  }
+}

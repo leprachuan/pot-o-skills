@@ -1,0 +1,12 @@
+{
+  "name": "collaborative-work-queue",
+  "version": "1.0.0",
+  "description": "Reusable multi-agent work queue with markdown tables, JSON locks, state machine enforcement, TTL-based stale detection, and scheduler-driven dispatch. Drop-in replacement for bespoke wee-dev/wee-qa/wee-doc pipeline.",
+  "category": "workflow",
+  "runtimes": ["copilot", "claude", "gemini"],
+  "entry_points": {
+    "copilot": "copilot/queue_cli.py",
+    "claude": "copilot/queue_cli.py",
+    "gemini": "copilot/queue_cli.py"
+  }
+}

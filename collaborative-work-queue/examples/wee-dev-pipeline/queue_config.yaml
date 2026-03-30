@@ -1,0 +1,55 @@
+queue:
+  name: wee-dev-pipeline
+  queue_dir: /opt/wee-dev
+  queue_files:
+    - WORK_QUEUE.md
+
+lock:
+  file: WORK_QUEUE.lock.json
+  ttl_seconds: 7200
+
+statuses:
+  queued: { transitions_to: [in-progress, blocked, skipped] }
+  in-progress: { transitions_to: [implemented, blocked] }
+  implemented: { transitions_to: [qa-review] }
+  qa-review: { transitions_to: [done, qa-failed] }
+  qa-failed: { transitions_to: [in-progress] }
+  done: { terminal: true, move_to_section: "Completed Work" }
+  blocked: { terminal: true }
+  skipped: { terminal: true }
+
+roles:
+  developer:
+    agent: wee-dev
+    handles_statuses: [queued, qa-failed]
+    sets_status_to: in-progress
+    max_concurrent: 1
+    model: claude-opus-4.6
+    timeout: 3600
+    prompt_template: |
+      You are wee-dev. Work on the following item from the work queue: {item_title} (ID: {item_id})
+      Queue: /opt/wee-dev/WORK_QUEUE.md
+      After completing, update status to implemented and release the lock.
+  reviewer:
+    agent: wee-qa
+    handles_statuses: [qa-review]
+    sets_status_to: qa-review
+    max_concurrent: 1
+    model: claude-sonnet-4.6
+    timeout: 3600
+    prompt_template: |
+      You are wee-qa. Review the following completed work item: {item_title} (ID: {item_id})
+      Set status to done (approved) or qa-failed (rejected) with notes.
+  documenter:
+    agent: wee-doc
+    trigger_after: [done]
+    model: claude-sonnet-4.6
+    timeout: 1800
+    prompt_template: |
+      You are wee-doc. Update documentation for recently completed item: {item_title} (ID: {item_id})
+
+dispatch:
+  api_url: https://127.0.0.1:8000/api/v1/background-tasks
+  api_token_env: WEE_API_TOKEN
+  stall_threshold_seconds: 7200
+  runtime: copilot

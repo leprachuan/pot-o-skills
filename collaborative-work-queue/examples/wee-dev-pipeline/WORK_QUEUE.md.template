@@ -1,0 +1,10 @@
+# Work Queue
+
+| ID | Title | Priority | Status | Notes | QA Status | Commit SHA | Last Updated |
+|----|-------|----------|--------|-------|-----------|------------|--------------|
+| F001 | Example feature | P1 | queued | Initial setup | | | |
+
+## Completed Work
+
+| ID | Title | Priority | Status | Notes | QA Status | Commit SHA | Last Updated |
+|----|-------|----------|--------|-------|-----------|------------|--------------|
