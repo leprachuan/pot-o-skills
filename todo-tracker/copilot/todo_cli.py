@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """
 TODO CLI for managing TODOs via command line.
+All commands accept a TODO ID (e.g. Ta3f7) or the full description.
 """
 
 import sys
@@ -14,31 +15,31 @@ from todo_manager import TodoManager
 def cmd_add(args):
     """Add a new TODO."""
     manager = TodoManager()
-    manager.add_todo(
+    new_id = manager.add_todo(
         description=args.description,
         due=args.due,
         labels=args.labels.split(',') if args.labels else None,
         notes=args.notes,
     )
-    print(f"✓ Added: {args.description}")
+    print(f"✓ Added [{new_id}]: {args.description}")
 
 
 def cmd_complete(args):
     """Complete a TODO."""
     manager = TodoManager()
-    if manager.complete_todo(args.description):
-        print(f"✓ Completed: {args.description}")
+    if manager.complete_todo(args.identifier):
+        print(f"✓ Completed: {args.identifier}")
     else:
-        print(f"✗ TODO not found: {args.description}")
+        print(f"✗ TODO not found: {args.identifier}")
 
 
 def cmd_remove(args):
     """Remove a TODO."""
     manager = TodoManager()
-    if manager.remove_todo(args.description):
-        print(f"✓ Removed: {args.description}")
+    if manager.remove_todo(args.identifier):
+        print(f"✓ Removed: {args.identifier}")
     else:
-        print(f"✗ TODO not found: {args.description}")
+        print(f"✗ TODO not found: {args.identifier}")
 
 
 def cmd_list(args):
@@ -57,7 +58,8 @@ def cmd_list(args):
 
     for todo in todos:
         checkbox = '✓' if todo['completed'] else '○'
-        line = f"{checkbox} {todo['description']}"
+        tid = todo.get('id') or '-----'
+        line = f"{checkbox} [{tid}] {todo['description']}"
         if todo.get('due'):
             line += f" (due {todo['due']})"
         if todo.get('labels'):
@@ -68,10 +70,10 @@ def cmd_list(args):
 def cmd_note(args):
     """Append a progress note to a TODO."""
     manager = TodoManager()
-    if manager.append_note(args.description, args.note):
-        print(f"✓ Note added to: {args.description}")
+    if manager.append_note(args.identifier, args.note):
+        print(f"✓ Note added to: {args.identifier}")
     else:
-        print(f"✗ TODO not found: {args.description}")
+        print(f"✗ TODO not found: {args.identifier}")
 
 
 def cmd_upcoming(args):
@@ -85,7 +87,8 @@ def cmd_upcoming(args):
 
     print("Upcoming TODOs:")
     for todo in todos:
-        print(f"  • {todo['description']} (due {todo['due']})")
+        tid = todo.get('id') or '-----'
+        print(f"  • [{tid}] {todo['description']} (due {todo['due']})")
 
 
 def cmd_overdue(args):
@@ -99,7 +102,20 @@ def cmd_overdue(args):
 
     print("Overdue TODOs:")
     for todo in todos:
-        print(f"  • {todo['description']} (due {todo['due']})")
+        tid = todo.get('id') or '-----'
+        print(f"  • [{tid}] {todo['description']} (due {todo['due']})")
+
+
+def cmd_backfill_ids(args):
+    """Assign IDs to all TODOs that don't have one yet."""
+    manager = TodoManager()
+    assigned = manager.backfill_ids()
+    if not assigned:
+        print("All TODOs already have IDs")
+        return
+    for desc, tid in assigned:
+        print(f"  {tid} ← {desc}")
+    print(f"✓ Assigned {len(assigned)} IDs")
 
 
 def main():
@@ -116,17 +132,17 @@ def main():
 
     # Complete command
     complete_parser = subparsers.add_parser('complete', help='Complete a TODO')
-    complete_parser.add_argument('description', help='TODO description')
+    complete_parser.add_argument('identifier', help='TODO ID (e.g. Ta3f7) or description')
     complete_parser.set_defaults(func=cmd_complete)
 
     # Remove command
     remove_parser = subparsers.add_parser('remove', help='Remove a TODO')
-    remove_parser.add_argument('description', help='TODO description')
+    remove_parser.add_argument('identifier', help='TODO ID (e.g. Ta3f7) or description')
     remove_parser.set_defaults(func=cmd_remove)
 
     # Note command
     note_parser = subparsers.add_parser('note', help='Append a progress note to a TODO')
-    note_parser.add_argument('description', help='TODO description')
+    note_parser.add_argument('identifier', help='TODO ID (e.g. Ta3f7) or description')
     note_parser.add_argument('note', help='Progress note to append')
     note_parser.set_defaults(func=cmd_note)
 
@@ -142,6 +158,10 @@ def main():
     # Overdue command
     overdue_parser = subparsers.add_parser('overdue', help='Show overdue TODOs')
     overdue_parser.set_defaults(func=cmd_overdue)
+
+    # Backfill IDs command
+    backfill_parser = subparsers.add_parser('backfill-ids', help='Assign IDs to TODOs without one')
+    backfill_parser.set_defaults(func=cmd_backfill_ids)
 
     args = parser.parse_args()
     if hasattr(args, 'func'):

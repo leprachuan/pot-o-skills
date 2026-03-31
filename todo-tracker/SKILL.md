@@ -9,6 +9,7 @@ A comprehensive TODO management system with markdown-based storage, due dates, l
 
 ## Features
 
+- ✅ **Short IDs** - Every TODO gets a unique 5-char ID (T + 4 alphanumeric) for easy reference
 - ✅ **Markdown Storage** - TODOs stored in human-readable markdown format
 - ✅ **Due Dates** - Support for date-only and timed due dates
 - ✅ **Labels** - Organize TODOs by labels (FAMILY, WORK, HOME_LAB, URGENT, etc)
@@ -34,6 +35,22 @@ export TELEGRAM_SKILL_PATH="/opt/skills/telegram-notify"
 See README.md for complete configuration options.
 
 ## Usage
+
+### TODO IDs
+
+Every TODO is automatically assigned a unique short ID in the format `Txxxx` (e.g. `Tktbj`).
+All commands accept either the ID or the full description.
+
+```bash
+# These are equivalent:
+python3 copilot/todo_cli.py note Tktbj "Checked Amazon"
+python3 copilot/todo_cli.py note "Get a label maker" "Checked Amazon"
+```
+
+To backfill IDs onto existing TODOs that don't have one:
+```bash
+python3 copilot/todo_cli.py backfill-ids
+```
 
 ### Add a TODO
 ```bash
@@ -94,6 +111,7 @@ manager.append_note("Task name", "Deployed fix to dev, awaiting QA")
 
 Notes are appended with a timestamp, so the file builds up a log:
 ```
+ID: Ta3f7
 DUE: 2026-04-01 10:00
 LABELS: {HOME_LAB}
 [2026-03-31 14:22] Started investigating DNS resolution failures
@@ -132,7 +150,8 @@ TODOs are stored as individual files in ACTIVE/ and COMPLETED/ directories:
 **Format:**
 - Each file = one TODO
 - Filename = TODO description
-- File contents = Due date, labels, notes (optional)
+- First line = `ID: Txxxx` (unique short ID)
+- File contents = ID, due date, labels, notes (optional)
 
 ## Reminder Behavior
 
