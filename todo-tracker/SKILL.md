@@ -51,6 +51,11 @@ python3 copilot/todo_cli.py list completed
 python3 copilot/todo_cli.py complete "Buy milk"
 ```
 
+### Append a Progress Note
+```bash
+python3 copilot/todo_cli.py note "Buy milk" "Checked store — out of stock, trying Costco tomorrow"
+```
+
 ### Get Upcoming/Overdue
 ```bash
 python3 copilot/todo_cli.py upcoming
@@ -60,6 +65,40 @@ python3 copilot/todo_cli.py overdue
 ### Run Reminder Service
 ```bash
 python3 todo_reminder.py
+```
+
+## Progress Tracking
+
+**When working on a TODO, always record progress into its notes.** This creates a timestamped activity log inside the TODO file so anyone (human or agent) can see what was done, what's pending, and what decisions were made.
+
+### When to Add Notes
+
+- **Starting work** — note what you're about to do
+- **Key milestones** — completed a sub-step, deployed something, got a result
+- **Decisions made** — chose approach A over B, skipped something and why
+- **Blockers or handoffs** — waiting on X, handed off to Y
+- **Completion** — summarize what was done before marking complete
+
+### How
+
+```bash
+# CLI
+python3 /opt/pot-o-skills/todo-tracker/copilot/todo_cli.py note "Task name" "Started investigating the root cause"
+python3 /opt/pot-o-skills/todo-tracker/copilot/todo_cli.py note "Task name" "Fixed — updated config in /etc/foo.conf"
+
+# Python (from agent code)
+from todo_manager import TodoManager
+manager = TodoManager()
+manager.append_note("Task name", "Deployed fix to dev, awaiting QA")
+```
+
+Notes are appended with a timestamp, so the file builds up a log:
+```
+DUE: 2026-04-01 10:00
+LABELS: {HOME_LAB}
+[2026-03-31 14:22] Started investigating DNS resolution failures
+[2026-03-31 14:35] Root cause: stale /etc/resolv.conf after DHCP renewal
+[2026-03-31 14:40] Fixed — pointed to local DNS server 192.168.0.1
 ```
 
 ## Runtimes

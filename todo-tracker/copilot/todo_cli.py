@@ -65,6 +65,15 @@ def cmd_list(args):
         print(line)
 
 
+def cmd_note(args):
+    """Append a progress note to a TODO."""
+    manager = TodoManager()
+    if manager.append_note(args.description, args.note):
+        print(f"✓ Note added to: {args.description}")
+    else:
+        print(f"✗ TODO not found: {args.description}")
+
+
 def cmd_upcoming(args):
     """Show upcoming TODOs."""
     manager = TodoManager()
@@ -114,6 +123,12 @@ def main():
     remove_parser = subparsers.add_parser('remove', help='Remove a TODO')
     remove_parser.add_argument('description', help='TODO description')
     remove_parser.set_defaults(func=cmd_remove)
+
+    # Note command
+    note_parser = subparsers.add_parser('note', help='Append a progress note to a TODO')
+    note_parser.add_argument('description', help='TODO description')
+    note_parser.add_argument('note', help='Progress note to append')
+    note_parser.set_defaults(func=cmd_note)
 
     # List command
     list_parser = subparsers.add_parser('list', help='List TODOs')

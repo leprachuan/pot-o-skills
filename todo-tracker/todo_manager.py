@@ -224,6 +224,17 @@ class TodoManager:
         active_file.write_text(new_content.strip())
         return True
 
+    def append_note(self, description: str, note: str) -> bool:
+        """Append a timestamped progress note to an ACTIVE todo."""
+        active_file = self.active_dir / description
+        if not active_file.exists():
+            return False
+        content = active_file.read_text().rstrip()
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M")
+        content += f"\n[{timestamp}] {note}"
+        active_file.write_text(content + "\n")
+        return True
+
     def complete_todo(self, description: str) -> bool:
         """Move a TODO from ACTIVE to COMPLETED, stamping completion date."""
         active_file = self.active_dir / description
