@@ -96,6 +96,12 @@ class TodoManager:
             if directory.exists():
                 for f in directory.iterdir():
                     if f.is_file():
+                        # Check filename prefix first (new format)
+                        m = re.match(r'^\[(T[a-z0-9]{4})\] ', f.name)
+                        if m:
+                            ids.add(m.group(1))
+                            continue
+                        # Fall back to file content (legacy format)
                         first_line = f.read_text().split("\n", 1)[0]
                         m = re.match(r"^ID:\s*(T[a-z0-9]{4})$", first_line)
                         if m:
@@ -107,6 +113,7 @@ class TodoManager:
     ) -> Optional[Tuple[Path, bool]]:
         """Find a TODO file by ID. Returns (path, completed) or None."""
         todo_id = todo_id if todo_id[0] == "T" else "T" + todo_id[1:]
+        prefix = f"[{todo_id}] "
         for directory, completed in [
             (self.active_dir, False),
             (self.completed_dir, True),
@@ -115,6 +122,10 @@ class TodoManager:
                 continue
             for f in directory.iterdir():
                 if f.is_file():
+                    # Check filename prefix first (new format)
+                    if f.name.lower().startswith(prefix.lower()):
+                        return (f, completed)
+                    # Fall back to file content (legacy format)
                     first_line = f.read_text().split("\n", 1)[0]
                     m = re.match(r"^ID:\s*(T[a-z0-9]{4})$", first_line)
                     if m and m.group(1) == todo_id:
@@ -132,8 +143,17 @@ class TodoManager:
             if result and not result[1]:
                 return result[0]
             return None
-        active_file = self.active_dir / identifier
-        return active_file if active_file.exists() else None
+        # Exact match (legacy filenames without prefix)
+        exact = self.active_dir / identifier
+        if exact.exists():
+            return exact
+        # Search for [Txxx] prefixed filename matching the description
+        for f in self.active_dir.iterdir():
+            if f.is_file():
+                m = re.match(r'^\[T[a-z0-9]{4}\] (.+)$', f.name)
+                if m and m.group(1) == identifier:
+                    return f
+        return None
 
     def resolve_any(
         self, identifier: str
@@ -145,9 +165,16 @@ class TodoManager:
             (self.active_dir, False),
             (self.completed_dir, True),
         ]:
+            # Exact match (legacy filenames without prefix)
             f = directory / identifier
             if f.exists():
                 return (f, completed)
+            # Search for [Txxx] prefixed filename
+            for f in directory.iterdir():
+                if f.is_file():
+                    m = re.match(r'^\[T[a-z0-9]{4}\] (.+)$', f.name)
+                    if m and m.group(1) == identifier:
+                        return (f, completed)
         return None
 
     def get_id_for_todo(self, description: str) -> Optional[str]:
@@ -162,7 +189,8 @@ class TodoManager:
         return None
 
     def backfill_ids(self) -> List[Tuple[str, str]]:
-        """Assign IDs to all TODOs that don't have one. Returns [(desc, id)]."""
+        """Assign IDs to all TODOs that don't have one, and rename files to [ID] format.
+        Returns [(original_desc, id)]."""
         assigned = []
         for directory in [self.active_dir, self.completed_dir]:
             if not directory.exists():
@@ -170,13 +198,24 @@ class TodoManager:
             for f in sorted(directory.iterdir()):
                 if not f.is_file():
                     continue
+                name = f.name
+                # Already has [Txxx] prefix in filename — skip
+                if re.match(r'^\[T[a-z0-9]{4}\] ', name):
+                    continue
                 content = f.read_text()
                 first_line = content.split("\n", 1)[0]
-                if re.match(r"^ID:\s*T[a-z0-9]{4}$", first_line):
-                    continue
-                new_id = self._generate_id()
-                f.write_text(f"ID: {new_id}\n{content}")
-                assigned.append((f.name, new_id))
+                id_match = re.match(r"^ID:\s*(T[a-z0-9]{4})$", first_line)
+                if id_match:
+                    # Has ID in content but not in filename — rename to add prefix
+                    todo_id = id_match.group(1)
+                else:
+                    # No ID anywhere — generate one and write to content
+                    todo_id = self._generate_id()
+                    content = f"ID: {todo_id}\n{content}"
+                    f.write_text(content)
+                new_name = f"[{todo_id}] {name}"
+                f.rename(directory / new_name)
+                assigned.append((name, todo_id))
         return assigned
 
     def load_todos(self) -> List[Dict]:
@@ -199,11 +238,19 @@ class TodoManager:
 
     def _parse_todo_file(self, file_path: Path, completed: bool) -> Dict:
         """Parse a TODO file and extract metadata (supports both WebUI and legacy formats)."""
-        description = file_path.name
+        name = file_path.name
+        # Extract ID and clean description from filename prefix [Txxx] Description
+        m = re.match(r'^\[(T[a-z0-9]{4})\] (.+)$', name)
+        if m:
+            file_id = m.group(1)
+            description = m.group(2)
+        else:
+            file_id = None
+            description = name
         content = file_path.read_text().strip() if file_path.exists() else ""
 
         todo = {
-            'id': None,
+            'id': file_id,
             'description': description,
             'completed': completed,
             'section': 'Completed' if completed else 'Active',
@@ -218,9 +265,10 @@ class TodoManager:
         for line in lines:
             line = line.strip()
 
-            # Parse ID: Txxxx
+            # Parse ID: Txxxx (legacy content-based ID — prefer filename-based id)
             if re.match(r'^ID:\s*T[a-z0-9]{4}$', line):
-                todo['id'] = line.replace('ID:', '').strip()
+                if todo['id'] is None:
+                    todo['id'] = line.replace('ID:', '').strip()
                 continue
 
             # Parse WebUI format: DUE: YYYY-MM-DD HH:MM
@@ -257,8 +305,9 @@ class TodoManager:
 
     def add_todo(self, description: str, due: Optional[str] = None, labels: Optional[List[str]] = None, notes: Optional[str] = None) -> str:
         """Add a new TODO as a file in ACTIVE directory. Returns the assigned ID."""
-        todo_file = self.active_dir / description
         new_id = self._generate_id()
+        filename = f"[{new_id}] {description}"
+        todo_file = self.active_dir / filename
         content = f"ID: {new_id}\n"
 
         # WebUI format: DUE: YYYY-MM-DD HH:MM
