@@ -234,6 +234,34 @@ c.render(components)
 
 ---
 
+## Mobile Channel Behavior
+
+When Foster views the canvas via **Telegram or WebEx** (mobile channels), always append `?mobile=1` to the canvas URL. This activates a mobile-first CSS layout:
+
+- Cards and rows **stack vertically** (no side-by-side layouts)
+- Base font size **14px** (headings 16–18px max)
+- Buttons and inputs **min 44px** tap target height
+- All content fits within viewport — **no horizontal scrolling**
+- Export buttons hidden (not useful on mobile)
+
+### How to apply in agent code
+
+```python
+import os
+
+channel = os.environ.get('WEE_CHANNEL', 'webui').lower()
+
+url = canvas.viewer_url()   # e.g. http://100.124.186.75:18793/?session=abc
+if channel in ('telegram', 'webex'):
+    url += ('&' if '?' in url else '?') + 'mobile=1'
+
+# Now send `url` to the user
+```
+
+The `?mobile=1` param sets `body.mobile-mode` class in the HTML, which overrides all layout to mobile-friendly values. The same overrides also trigger automatically via `@media (max-width: 480px)` for anyone opening the link on a real phone.
+
+---
+
 ## Server Configuration
 
 ### TLS/HTTPS

@@ -210,6 +210,45 @@ c.render([
 
 ---
 
+## Mobile Channel Behavior
+
+When Foster is on **Telegram or WebEx** (mobile channels), canvas URLs must be optimized for phone viewports (375–430px wide).
+
+### Rules for mobile channels
+
+- Append `?mobile=1` to every canvas URL sent via Telegram or WebEx
+- The canvas HTML includes a CSS media query (`@media (max-width: 480px)`) AND a `body.mobile-mode` class applied when `?mobile=1` is set — both paths produce the same mobile-friendly layout
+- Mobile layout: stacked cards (flex-column), 14px base font, 100% widths, min 44px tap targets
+- All content fits within viewport — no horizontal scroll
+
+### Mobile CSS behaviour (auto-applied)
+
+| Element | Desktop | Mobile |
+|---|---|---|
+| `body` | 16px font | 14px font, 8px padding |
+| `.c-row` | `flex-wrap: wrap` (side-by-side) | `flex-direction: column` (stacked) |
+| `.c-grid` | multi-column grid | `grid-template-columns: 1fr` |
+| `.board-wrap` | `repeat(auto-fit, ...)` columns | single column |
+| `.btn`, inputs | natural size | `min-height: 44px` for tap targets |
+| `.c-h1/.c-h2` | 28px / 22px | 18px / 16px |
+| `.metric-value` | 28px | 20px |
+
+### Channel detection in agent code
+
+```python
+import os
+channel = os.environ.get('WEE_CHANNEL', 'webui').lower()
+mobile = channel in ('telegram', 'webex')
+
+url = canvas.viewer_url()
+if mobile:
+    url += ('&' if '?' in url else '?') + 'mobile=1'
+
+# Send url to user
+```
+
+---
+
 ## Server Details
 
 - **Port:** 18793 (override: `CANVAS_PORT` env var)

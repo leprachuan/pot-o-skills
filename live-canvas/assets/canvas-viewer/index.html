@@ -242,6 +242,78 @@
     .c-row { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-start; }
     .c-col { display: flex; flex-direction: column; gap: 8px; }
     .c-grid { display: grid; gap: 16px; }
+
+    /* ── Mobile overrides (Telegram/WebEx) ── */
+    /* Applied via ?mobile=1 param OR narrow viewport */
+    @media (max-width: 480px) {
+      body { font-size: 14px; padding: 0; }
+      #canvas-root { padding: 8px; gap: 10px; }
+      #header { padding: 10px 12px; }
+      #header .logo { font-size: 16px; }
+      #header .title { font-size: 13px; }
+      #header .session-id { display: none; }
+      .export-btn { display: none; }
+
+      .glass-panel, .glass-card { padding: 12px; border-radius: 10px; }
+
+      /* Stack cards/rows vertically */
+      .c-row { flex-direction: column; }
+      .c-grid { grid-template-columns: 1fr !important; gap: 10px; }
+      .board-wrap { grid-template-columns: 1fr; gap: 10px; }
+
+      /* Larger tap targets */
+      .btn { min-height: 44px; font-size: 15px; padding: 10px 16px; }
+      .export-btn { min-height: 44px; }
+      .glass-input, .glass-select { min-height: 44px; font-size: 15px; }
+
+      /* Smaller headings */
+      .c-h1 { font-size: 18px; }
+      .c-h2 { font-size: 16px; }
+      .c-h3 { font-size: 15px; }
+      .c-h4 { font-size: 13px; }
+
+      /* Metric values — shrink so they fit */
+      .metric-value { font-size: 20px; }
+      .metric-label { font-size: 10px; }
+
+      /* Tables — allow horizontal scroll inside a wrapper */
+      .glass-table { font-size: 12px; }
+      .glass-table th, .glass-table td { padding: 7px 8px; }
+
+      /* Log/code blocks */
+      .log-area, .code-block { font-size: 11px; }
+
+      /* Mermaid diagrams — shrink to fit */
+      .mermaid-wrap { padding: 8px; overflow-x: auto; }
+      .mermaid svg { max-width: 100%; }
+
+      /* Modal */
+      .modal-box { padding: 16px; width: 95%; }
+
+      /* Background blobs — reduce on mobile to save rendering */
+      .bg-blob { opacity: 0.25; }
+    }
+
+    /* Force mobile layout when ?mobile=1 is set (via JS class injection) */
+    body.mobile-mode { font-size: 14px; padding: 0; }
+    body.mobile-mode #canvas-root { padding: 8px; gap: 10px; }
+    body.mobile-mode #header { padding: 10px 12px; }
+    body.mobile-mode #header .title { font-size: 13px; }
+    body.mobile-mode #header .session-id { display: none; }
+    body.mobile-mode .export-btn { display: none; }
+    body.mobile-mode .glass-panel,
+    body.mobile-mode .glass-card { padding: 12px; border-radius: 10px; }
+    body.mobile-mode .c-row { flex-direction: column; }
+    body.mobile-mode .c-grid { grid-template-columns: 1fr !important; gap: 10px; }
+    body.mobile-mode .board-wrap { grid-template-columns: 1fr; gap: 10px; }
+    body.mobile-mode .btn { min-height: 44px; font-size: 15px; padding: 10px 16px; }
+    body.mobile-mode .glass-input,
+    body.mobile-mode .glass-select { min-height: 44px; font-size: 15px; }
+    body.mobile-mode .c-h1 { font-size: 18px; }
+    body.mobile-mode .c-h2 { font-size: 16px; }
+    body.mobile-mode .c-h3 { font-size: 15px; }
+    body.mobile-mode .metric-value { font-size: 20px; }
+    body.mobile-mode .bg-blob { opacity: 0.25; }
   </style>
 </head>
 <body>
@@ -280,9 +352,14 @@
   <script src="highcharts-helpers.js"></script>
   <script src="renderer.js"></script>
   <script>
-    // ── Parse session ID ───────────────────────────────────────────────────
+    // ── Parse session ID and mobile mode ──────────────────────────────────
     const params = new URLSearchParams(location.search);
     const SESSION_ID = params.get('session') || 'default';
+
+    // ?mobile=1 forces mobile layout (for Telegram/WebEx channel links)
+    if (params.get('mobile') === '1') {
+      document.body.classList.add('mobile-mode');
+    }
     document.getElementById('session-label').textContent = `Session: ${SESSION_ID}`;
     document.title = `Live Canvas — ${SESSION_ID} 🍀`;
 

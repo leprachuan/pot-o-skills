@@ -9,6 +9,19 @@ Usage:
     python3 canvas_cli.py clear --session abc123
     python3 canvas_cli.py open --session abc123
     python3 canvas_cli.py wait-action --session abc123 --timeout 60
+
+## Mobile Channel Detection
+Check WEE_CHANNEL or the channel context before sending canvas URLs to the user:
+- If channel is "telegram" or "webex": append ?mobile=1 to canvas URLs, so the
+  canvas renders with stacked cards, 14px fonts, 100% widths, and 44px tap targets.
+- If channel is "webui" or unknown: use the default desktop layout.
+
+Example:
+    import os
+    channel = os.environ.get('WEE_CHANNEL', 'webui').lower()
+    url = canvas.viewer_url()
+    if channel in ('telegram', 'webex'):
+        url += ('&' if '?' in url else '?') + 'mobile=1'
 """
 import sys
 import os
