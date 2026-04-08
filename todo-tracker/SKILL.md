@@ -1,16 +1,18 @@
 ---
 name: todo-tracker
-description: Production-ready TODO management with markdown storage, due dates, labels, and automatic reminders. Fully portable with environment variable configuration.
+description: Production-ready TODO management with dual-source support (GitHub Issues + flat files), due dates, labels, and automatic reminders. Fully portable with environment variable configuration.
 ---
 
 # TODO Tracker Skill
 
-A comprehensive TODO management system with markdown-based storage, due dates, labels, and automatic reminders. Fully portable and configurable for multi-host deployments.
+A comprehensive TODO management system with dual-source support — reads from **GitHub Issues** (primary) and **flat files** (fallback). Includes markdown-based storage, due dates, labels, and automatic reminders.
 
 ## Features
 
+- ✅ **Dual Source** - GitHub Issues (primary) + flat files (fallback), deduplicated by title
 - ✅ **Short IDs** - Every TODO gets a unique 5-char ID (T + 4 alphanumeric) for easy reference
-- ✅ **Markdown Storage** - TODOs stored in human-readable markdown format
+- ✅ **GitHub Issues** - TODOs as issues in `leprachuan/fosterbot-home` with labels & metadata
+- ✅ **Markdown Storage** - Flat-file TODOs stored in human-readable markdown format
 - ✅ **Due Dates** - Support for date-only and timed due dates
 - ✅ **Labels** - Organize TODOs by labels (FAMILY, WORK, HOME_LAB, URGENT, etc)
 - ✅ **Automatic Reminders** - Smart reminder tiers (1 day, 1 hour, 15 min before, at time, overdue)
@@ -59,8 +61,25 @@ python3 copilot/todo_cli.py add "Buy milk" --due 03/15/2026 --labels SHOPPING
 
 ### List TODOs
 ```bash
+# Dual-source (GitHub + flat files, deduplicated)
 python3 copilot/todo_cli.py list active
-python3 copilot/todo_cli.py list completed
+
+# GitHub Issues only
+python3 copilot/todo_cli.py list active --source github
+
+# Flat files only
+python3 copilot/todo_cli.py list active --source flat
+
+# Standalone dual-source provider
+python3 github_todo_provider.py summary
+python3 github_todo_provider.py list
+python3 github_todo_provider.py github-only
+python3 github_todo_provider.py flat-only
+```
+
+### Create a TODO (GitHub Issue)
+```bash
+python3 github_todo_provider.py create --title "New task" --due "2026-05-01" --labels "home,todo"
 ```
 
 ### Complete a TODO
@@ -130,7 +149,18 @@ Python CLI tool for terminal-based TODO management.
 ### Gemini
 JavaScript implementation for web-based TODO interfaces.
 
-## Storage Format
+## Storage
+
+### Primary: GitHub Issues (`leprachuan/fosterbot-home`)
+
+TODOs are stored as GitHub Issues labelled `todo`. Additional labels (`financial`, `health`, `home`, `tech`, `synced-from-reminders`) categorize them. Due dates are embedded in the issue body.
+
+```bash
+# Set custom repo
+export TODO_GITHUB_REPO="leprachuan/fosterbot-home"
+```
+
+### Fallback: Flat Files
 
 TODOs are stored as individual files in ACTIVE/ and COMPLETED/ directories:
 

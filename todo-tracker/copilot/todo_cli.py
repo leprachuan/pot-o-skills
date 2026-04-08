@@ -43,23 +43,45 @@ def cmd_remove(args):
 
 
 def cmd_list(args):
-    """List TODOs."""
-    manager = TodoManager()
-    todos = manager.load_todos()
+    """List TODOs from both GitHub Issues and flat files."""
+    source = getattr(args, 'source', 'all')
+    include_completed = args.filter in ('all', 'completed')
+
+    if source == 'github':
+        from github_todo_provider import GitHubTodoProvider
+        provider = GitHubTodoProvider()
+        todos = provider.load_github_todos(include_closed=include_completed)
+    elif source == 'flat':
+        manager = TodoManager()
+        todos = manager.load_todos()
+    else:
+        # Dual-source (default)
+        try:
+            from github_todo_provider import DualSourceTodoManager
+            dual = DualSourceTodoManager()
+            todos = dual.load_all_todos(include_completed=include_completed)
+        except Exception:
+            manager = TodoManager()
+            todos = manager.load_todos()
 
     if args.filter == 'active':
-        todos = [t for t in todos if not t['completed']]
+        todos = [t for t in todos if not t.get('completed')]
     elif args.filter == 'completed':
-        todos = [t for t in todos if t['completed']]
+        todos = [t for t in todos if t.get('completed')]
 
     if not todos:
         print("No TODOs")
         return
 
     for todo in todos:
-        checkbox = '✓' if todo['completed'] else '○'
+        checkbox = '✓' if todo.get('completed') else '○'
         tid = todo.get('id') or '-----'
-        line = f"{checkbox} [{tid}] {todo['description']}"
+        src_icon = ''
+        if todo.get('source') == 'github':
+            src_icon = '🐙 '
+        elif todo.get('source') == 'flatfile':
+            src_icon = '📄 '
+        line = f"{checkbox} {src_icon}[{tid}] {todo['description']}"
         if todo.get('due'):
             line += f" (due {todo['due']})"
         if todo.get('labels'):
@@ -149,6 +171,8 @@ def main():
     # List command
     list_parser = subparsers.add_parser('list', help='List TODOs')
     list_parser.add_argument('filter', nargs='?', default='all', choices=['all', 'active', 'completed'])
+    list_parser.add_argument('--source', choices=['all', 'github', 'flat'], default='all',
+                             help='Source: all (GitHub+flat, default), github, flat')
     list_parser.set_defaults(func=cmd_list)
 
     # Upcoming command
