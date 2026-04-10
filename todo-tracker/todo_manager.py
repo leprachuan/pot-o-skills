@@ -4,13 +4,18 @@ Core TODO management - handles individual TODO files in ACTIVE/ and COMPLETED/ d
 Each TODO is a separate file, with filename as the description.
 """
 
+import json
 import os
 import random
 import re
 import string
+import subprocess
 from pathlib import Path
 from datetime import datetime
 from typing import List, Dict, Optional, Tuple
+
+GITHUB_REPO = os.environ.get("TODO_GITHUB_REPO", "leprachuan/fosterbot-home")
+GITHUB_LABEL = "todo"
 
 
 class TodoManager:
@@ -48,6 +53,73 @@ class TodoManager:
         self.completed_dir = self.todo_dir / "COMPLETED"
         self.active_dir.mkdir(parents=True, exist_ok=True)
         self.completed_dir.mkdir(parents=True, exist_ok=True)
+
+        self._github_repo = os.environ.get("TODO_GITHUB_REPO", GITHUB_REPO)
+        self._github_label = GITHUB_LABEL
+
+    # --- GitHub Issues helpers ---
+
+    def _run_gh(self, args: List[str], timeout: int = 30) -> Optional[str]:
+        """Run gh CLI and return stdout or None on failure."""
+        try:
+            r = subprocess.run(["gh"] + args, capture_output=True, text=True, timeout=timeout)
+            return r.stdout.strip() if r.returncode == 0 else None
+        except (subprocess.TimeoutExpired, FileNotFoundError):
+            return None
+
+    def _extract_due_from_body(self, body: str) -> Optional[str]:
+        """Extract due date string from GitHub Issue body."""
+        if not body:
+            return None
+        for pattern in [r"\*\*Due:\*\*\s*(.+)", r"DUE:\s*(.+)"]:
+            m = re.search(pattern, body)
+            if m:
+                return m.group(1).strip().split("\n")[0].strip()
+        return None
+
+    def _load_from_github(self, include_completed: bool = True) -> Optional[List[Dict]]:
+        """Load TODOs from GitHub Issues. Returns list of dicts or None on failure."""
+        state = "all" if include_completed else "open"
+        raw = self._run_gh([
+            "issue", "list", "--repo", self._github_repo,
+            "--label", self._github_label, "--state", state,
+            "--json", "number,title,body,labels,state,createdAt,closedAt",
+            "--limit", "200",
+        ])
+        if not raw:
+            return None
+        try:
+            issues = json.loads(raw)
+        except json.JSONDecodeError:
+            return None
+
+        todos = []
+        for issue in issues:
+            labels = [l["name"] for l in issue.get("labels", []) if l["name"] != self._github_label]
+            completed = issue.get("state", "").upper() == "CLOSED"
+            body = issue.get("body", "") or ""
+            notes_lines = []
+            for line in body.split("\n"):
+                s = line.strip()
+                if s and not any(s.startswith(p) for p in [
+                    "**Migrated", "📅", "**Due:", "DUE:", "LABELS:", "ID:",
+                    "---", "_Original file:", "<details>", "</details>",
+                    "<summary>", "```",
+                ]):
+                    notes_lines.append(s)
+
+            todos.append({
+                "id": f"GH-{issue['number']}",
+                "description": issue["title"],
+                "completed": completed,
+                "section": "Completed" if completed else "Active",
+                "due": self._extract_due_from_body(body),
+                "labels": labels,
+                "notes": "\n".join(notes_lines),
+                "source": "github",
+                "github_number": issue["number"],
+            })
+        return todos
 
     def _get_todo_dir_from_agents_json(self) -> str:
         """Look up todo_dir from agents.json for the current AGENT_NAME. Fails silently."""
@@ -219,21 +291,22 @@ class TodoManager:
         return assigned
 
     def load_todos(self) -> List[Dict]:
-        """Load TODOs from individual files in ACTIVE/ and COMPLETED/ directories."""
-        todos = []
+        """Load TODOs. Primary: GitHub Issues. Fallback: flat files."""
+        # Try GitHub Issues first
+        gh_todos = self._load_from_github()
+        if gh_todos is not None:
+            return gh_todos
 
-        # Load ACTIVE todos
+        # Flat-file fallback
+        todos = []
         if self.active_dir.exists():
             for todo_file in sorted(self.active_dir.iterdir()):
                 if todo_file.is_file():
                     todos.append(self._parse_todo_file(todo_file, completed=False))
-
-        # Load COMPLETED todos
         if self.completed_dir.exists():
             for todo_file in sorted(self.completed_dir.iterdir()):
                 if todo_file.is_file():
                     todos.append(self._parse_todo_file(todo_file, completed=True))
-
         return todos
 
     def _parse_todo_file(self, file_path: Path, completed: bool) -> Dict:
@@ -304,29 +377,43 @@ class TodoManager:
         return todo
 
     def add_todo(self, description: str, due: Optional[str] = None, labels: Optional[List[str]] = None, notes: Optional[str] = None) -> str:
-        """Add a new TODO as a file in ACTIVE directory. Returns the assigned ID."""
+        """Add a new TODO. Primary: GitHub Issue. Fallback: flat file. Returns the assigned ID."""
+        # Try GitHub Issue first
+        body_parts = []
+        if due:
+            due_str = due.strip()
+            if " " not in due_str:
+                due_str = f"{due_str} 10:00"
+            body_parts.append(f"📅 **Due:** {due_str}")
+        if notes:
+            body_parts.append(notes)
+        body = "\n\n".join(body_parts)
+
+        gh_labels = list(labels or []) + [self._github_label]
+        result = self._run_gh([
+            "issue", "create", "--repo", self._github_repo,
+            "--title", description, "--body", body,
+            "--label", ",".join(gh_labels),
+        ])
+        if result:
+            m = re.search(r"/issues/(\d+)", result)
+            if m:
+                return f"GH-{m.group(1)}"
+
+        # Flat-file fallback
         new_id = self._generate_id()
         filename = f"[{new_id}] {description}"
         todo_file = self.active_dir / filename
         content = f"ID: {new_id}\n"
-
-        # WebUI format: DUE: YYYY-MM-DD HH:MM
         if due:
-            # Convert various date formats to DUE: YYYY-MM-DD HH:MM format
             due_str = due.strip()
-            # If no time provided, default to 10:00
-            if ' ' not in due_str:
+            if " " not in due_str:
                 due_str = f"{due_str} 10:00"
             content += f"DUE: {due_str}\n"
-
-        # WebUI format: LABELS: {LABEL1},{LABEL2}
         if labels:
             content += f"LABELS: {{{','.join(labels)}}}\n"
-
-        # Add notes/details if provided
         if notes:
             content += f"\nDETAILS: {notes}\n"
-
         todo_file.write_text(content.strip())
         return new_id
 
@@ -402,7 +489,25 @@ class TodoManager:
         return True
 
     def complete_todo(self, identifier: str) -> bool:
-        """Move a TODO from ACTIVE to COMPLETED. Accepts ID or description."""
+        """Complete a TODO. Primary: close GitHub Issue. Fallback: move flat file."""
+        # If it's a GitHub ID (GH-NNN), close the issue directly
+        gh_match = re.match(r"^GH-(\d+)$", identifier, re.IGNORECASE)
+        if gh_match:
+            return self._run_gh([
+                "issue", "close", "--repo", self._github_repo, gh_match.group(1)
+            ]) is not None
+
+        # Search GitHub Issues by title match
+        gh_todos = self._load_from_github(include_completed=False)
+        if gh_todos:
+            for t in gh_todos:
+                if t["description"].lower() == identifier.lower():
+                    return self._run_gh([
+                        "issue", "close", "--repo", self._github_repo,
+                        str(t["github_number"])
+                    ]) is not None
+
+        # Flat-file fallback
         active_file = self.resolve_active(identifier)
         if active_file:
             content = active_file.read_text().rstrip()
