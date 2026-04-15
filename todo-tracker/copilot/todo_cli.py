@@ -140,6 +140,44 @@ def cmd_backfill_ids(args):
     print(f"✓ Assigned {len(assigned)} IDs")
 
 
+def cmd_view(args):
+    """Open an interactive TODO board on Wee Canvas."""
+    import subprocess
+    canvas_script = None
+    search_dirs = [
+        "/opt/skills/wee-canvas-todos/copilot/canvas_todos.py",
+        str(Path(__file__).parent.parent.parent / "wee-canvas-todos" / "copilot" / "canvas_todos.py"),
+    ]
+    for p in search_dirs:
+        if Path(p).exists():
+            canvas_script = p
+            break
+
+    if not canvas_script:
+        print("✗ wee-canvas-todos skill not found. Install it at /opt/skills/wee-canvas-todos/")
+        return
+
+    cmd = [sys.executable, canvas_script]
+    if getattr(args, 'session_id', None):
+        cmd += ["--session-id", args.session_id]
+    if getattr(args, 'height', None):
+        cmd += ["--height", str(args.height)]
+    if getattr(args, 'once', False):
+        cmd += ["--once"]
+    if getattr(args, 'refresh', None):
+        cmd += ["--refresh", str(args.refresh)]
+
+    print(f"🖥 Opening TODO canvas board...")
+    if args.once:
+        result = subprocess.run(cmd, capture_output=False)
+    else:
+        print("  (Press Ctrl+C to stop live refresh)")
+        try:
+            subprocess.run(cmd)
+        except KeyboardInterrupt:
+            print("\n✓ Canvas closed")
+
+
 def main():
     parser = argparse.ArgumentParser(description='TODO management')
     subparsers = parser.add_subparsers(dest='command', help='Commands')
@@ -186,6 +224,14 @@ def main():
     # Backfill IDs command
     backfill_parser = subparsers.add_parser('backfill-ids', help='Assign IDs to TODOs without one')
     backfill_parser.set_defaults(func=cmd_backfill_ids)
+
+    # View command (opens Wee Canvas TODO board)
+    view_parser = subparsers.add_parser('view', help='Open interactive TODO board on Wee Canvas')
+    view_parser.add_argument('--session-id', help='Canvas session ID (auto-generated if not set)')
+    view_parser.add_argument('--height', type=int, default=700, help='Canvas height in pixels (default: 700)')
+    view_parser.add_argument('--once', action='store_true', help='Render once and exit')
+    view_parser.add_argument('--refresh', type=int, default=30, help='Refresh interval in seconds (default: 30)')
+    view_parser.set_defaults(func=cmd_view)
 
     args = parser.parse_args()
     if hasattr(args, 'func'):

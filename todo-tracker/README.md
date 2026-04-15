@@ -21,6 +21,20 @@ python3 copilot/todo_cli.py list all
 python3 copilot/todo_cli.py complete "Buy milk"
 ```
 
+### Open the Visual TODO Board (Wee Canvas)
+```bash
+# Live board with 30-second auto-refresh:
+python3 copilot/todo_cli.py view
+
+# Render once and exit (for embedding):
+python3 copilot/todo_cli.py view --once
+
+# Custom options:
+python3 copilot/todo_cli.py view --height 800 --refresh 60 --session-id my-session
+```
+
+See [wee-canvas-todos skill](/opt/skills/wee-canvas-todos/SKILL.md) for full documentation.
+
 ### Get Reminders
 ```bash
 python3 copilot/todo_cli.py upcoming  # Due soon
