@@ -1,0 +1,24 @@
+{
+  "name": "wee-canvas-todos",
+  "version": "1.0.0",
+  "description": "Interactive TODO board for Wee Canvas — list and kanban views with dual-source data (GitHub Issues + flat files), filters, quick-add, and auto-refresh.",
+  "runtimes": ["copilot", "claude", "gemini"],
+  "entry_points": {
+    "copilot": "copilot/canvas_todos.py",
+    "claude": "copilot/canvas_todos.py",
+    "gemini": "copilot/canvas_todos.py"
+  },
+  "dependencies": {
+    "python": ["websockets"],
+    "skills": ["todo-tracker"]
+  },
+  "triggers": [
+    "show TODOs",
+    "open TODO board",
+    "TODO kanban",
+    "view my tasks",
+    "task board",
+    "canvas todos"
+  ],
+  "tags": ["todo", "canvas", "kanban", "productivity"]
+}
