@@ -1480,9 +1480,10 @@
                     alert(`✅ Dispatched to ${agentName}\n\nThe issue is now marked as AI Active.\nThe agent will read the issue and take action based on the description and latest comment.`);
                     agentSelect.value = '';  // Reset dropdown
                     closeDrawer();
-                    renderBoard();  // Refresh to move card to AI-ACTIVE column
+                    await loadIssues();  // Fetch fresh data so card appears in AI-ACTIVE column
                 } else {
                     alert('✅ Dispatch submitted, but failed to update status. Please refresh.');
+                    await loadIssues();  // Still refresh so any partial change is visible
                 }
             } catch (error) {
                 alert('Error dispatching: ' + error.message);
