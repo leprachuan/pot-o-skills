@@ -129,6 +129,36 @@
             font-weight: 500;
         }
 
+        .quick-filters {
+            display: flex;
+            gap: 8px;
+        }
+
+        .quick-filter-btn {
+            background: rgba(62, 207, 142, 0.15);
+            border: 1px solid rgba(62, 207, 142, 0.3);
+            color: var(--accent);
+            padding: 6px 12px;
+            border-radius: var(--radius-sm);
+            font-family: var(--font);
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: var(--transition);
+            white-space: nowrap;
+        }
+
+        .quick-filter-btn:hover {
+            background: rgba(62, 207, 142, 0.25);
+            border-color: var(--accent);
+        }
+
+        .quick-filter-btn.active {
+            background: rgba(62, 207, 142, 0.35);
+            border-color: var(--accent);
+            box-shadow: 0 0 8px rgba(62, 207, 142, 0.3);
+        }
+
         select {
             background: var(--surface-raised);
             border: 1px solid var(--glass-border);
@@ -782,6 +812,10 @@
                         <option value="normal">Normal</option>
                     </select>
                 </div>
+                <div class="quick-filters">
+                    <button class="quick-filter-btn" id="due-today-btn">📅 Due Today</button>
+                    <button class="quick-filter-btn" id="due-week-btn">📆 Due This Week</button>
+                </div>
                 <div class="filter-group">
                     <label class="filter-label">Due From:</label>
                     <input type="date" id="date-from-filter">
@@ -1161,6 +1195,61 @@
         });
 
         document.getElementById('date-to-filter').addEventListener('change', () => {
+            renderBoard();
+        });
+
+        // Quick filter buttons
+        function setQuickDateFilter(days = null) {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const todayStr = today.toISOString().split('T')[0];
+
+            const dateFromInput = document.getElementById('date-from-filter');
+            const dateToInput = document.getElementById('date-to-filter');
+
+            if (days === null) {
+                // Clear filters
+                dateFromInput.value = '';
+                dateToInput.value = '';
+            } else {
+                // Set from today
+                dateFromInput.value = todayStr;
+
+                // Set to date
+                const toDate = new Date(today);
+                toDate.setDate(toDate.getDate() + days);
+                dateToInput.value = toDate.toISOString().split('T')[0];
+            }
+
+            renderBoard();
+        }
+
+        document.getElementById('due-today-btn').addEventListener('click', () => {
+            setQuickDateFilter(0);  // Today only
+            updateQuickFilterButtons('due-today-btn');
+        });
+
+        document.getElementById('due-week-btn').addEventListener('click', () => {
+            setQuickDateFilter(7);  // This week (7 days)
+            updateQuickFilterButtons('due-week-btn');
+        });
+
+        function updateQuickFilterButtons(activeBtn) {
+            document.getElementById('due-today-btn').classList.remove('active');
+            document.getElementById('due-week-btn').classList.remove('active');
+            if (activeBtn) {
+                document.getElementById(activeBtn).classList.add('active');
+            }
+        }
+
+        // Clear active button when manually changing date filters
+        document.getElementById('date-from-filter').addEventListener('change', () => {
+            updateQuickFilterButtons(null);
+            renderBoard();
+        });
+
+        document.getElementById('date-to-filter').addEventListener('change', () => {
+            updateQuickFilterButtons(null);
             renderBoard();
         });
 
