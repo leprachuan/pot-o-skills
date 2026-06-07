@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GitHub Kanban Board</title>
+    <title>Wee Todo Kanban</title>
     <style>
         :root {
             --accent: #3ecf8e;
@@ -194,14 +194,14 @@
         .container {
             position: relative;
             z-index: 5;
-            max-width: 1400px;
+            max-width: 100%;
             margin: 0 auto;
             padding: 0 32px 32px;
         }
 
         .kanban {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+            grid-template-columns: repeat(5, 1fr);
             gap: 24px;
             min-height: 70vh;
         }
@@ -493,7 +493,7 @@
             position: fixed;
             top: 0;
             right: 0;
-            width: 450px;
+            width: 50vw;
             height: 100vh;
             background: var(--glass-bg);
             border-left: 1px solid var(--glass-border);
@@ -792,18 +792,25 @@
     <div class="bg-blob bg-blob-3"></div>
 
     <header>
-        <div class="header-content">
-            <h1>
-                <span class="logo">🍀</span>
-                GitHub Kanban Board
-            </h1>
-            <div class="header-controls">
-                <div class="filter-group">
-                    <label class="filter-label">Agent:</label>
-                    <select id="agent-filter">
-                        <option value="">All</option>
-                    </select>
+        <div class="header-content" style="flex-direction: column; align-items: stretch; gap: 16px;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <h1>
+                    <span class="logo">🍀</span>
+                    Wee Todo Kanban
+                </h1>
+                <div style="display: flex; gap: 12px; align-items: center;">
+                    <div class="status-badge" id="sync-status">🔄 Loading...</div>
+                    <button id="refresh-btn" title="Refresh now" style="padding: 6px 10px; background: var(--accent); color: white; border: none; border-radius: var(--radius-xs); cursor: pointer; font-size: 13px; font-weight: 500; transition: var(--transition); white-space: nowrap;">🔄 Refresh</button>
+                    <div id="refresh-timer" style="font-size: 12px; color: var(--text-muted); min-width: 64px; text-align: right;">Auto in 60s</div>
                 </div>
+            </div>
+
+            <div class="header-controls" style="flex-wrap: wrap; row-gap: 12px;">
+                <div class="filter-group" style="flex: 1; min-width: 220px; max-width: 320px;">
+                    <label class="filter-label">Search:</label>
+                    <input type="text" id="search-input" placeholder="Search issues..." style="flex: 1; padding: 6px 10px; background: var(--glass-bg); border: 1px solid var(--glass-border); border-radius: var(--radius-xs); color: var(--text-primary); font-size: 13px;">
+                </div>
+
                 <div class="filter-group">
                     <label class="filter-label">Urgency:</label>
                     <select id="urgency-filter">
@@ -812,19 +819,23 @@
                         <option value="normal">Normal</option>
                     </select>
                 </div>
+
+                <div class="filter-group">
+                    <label class="filter-label">Due:</label>
+                    <input type="date" id="date-from-filter" title="Due from">
+                    <span style="color: var(--text-muted);">→</span>
+                    <input type="date" id="date-to-filter" title="Due to">
+                </div>
+
                 <div class="quick-filters">
-                    <button class="quick-filter-btn" id="due-today-btn">📅 Due Today</button>
-                    <button class="quick-filter-btn" id="due-week-btn">📆 Due This Week</button>
+                    <button class="quick-filter-btn" id="due-today-btn">📅 Today</button>
+                    <button class="quick-filter-btn" id="due-week-btn">📆 This Week</button>
                 </div>
-                <div class="filter-group">
-                    <label class="filter-label">Due From:</label>
-                    <input type="date" id="date-from-filter">
+
+                <div style="display: flex; gap: 8px; align-items: center; margin-left: auto;">
+                    <button id="clear-filters-btn" style="padding: 6px 10px; background: var(--glass-bg); border: 1px solid var(--glass-border); color: var(--text-secondary); border-radius: var(--radius-xs); cursor: pointer; font-size: 12px; font-weight: 500; transition: var(--transition); white-space: nowrap;">✕ Clear Filters</button>
+                    <button id="toggle-done-btn" style="padding: 6px 10px; background: var(--glass-bg); border: 1px solid var(--glass-border); color: var(--text-secondary); border-radius: var(--radius-xs); cursor: pointer; font-size: 12px; font-weight: 500; transition: var(--transition); white-space: nowrap;">👁️ Hide Done</button>
                 </div>
-                <div class="filter-group">
-                    <label class="filter-label">Due To:</label>
-                    <input type="date" id="date-to-filter">
-                </div>
-                <div class="status-badge" id="sync-status">🔄 Loading...</div>
             </div>
         </div>
     </header>
@@ -884,16 +895,27 @@
                 <div class="drawer-content">
                     <div class="issue-meta">
                         <div class="meta-row">
+                            <span class="meta-label">Issue:</span>
+                            <span class="meta-value" id="drawer-issue-number"></span>
+                        </div>
+                        <div class="meta-row">
                             <span class="meta-label">Status:</span>
                             <span class="meta-value" id="drawer-status"></span>
                         </div>
                         <div class="meta-row">
                             <span class="meta-label">Agent:</span>
-                            <span class="meta-value" id="drawer-agent">-</span>
+                            <select id="drawer-agent-select" style="background: var(--glass-bg); border: 1px solid var(--glass-border); color: var(--text-primary); padding: 4px 8px; border-radius: var(--radius-xs); font-size: 12px; cursor: pointer;">
+                                <option value="">- None -</option>
+                            </select>
                         </div>
                         <div class="meta-row">
                             <span class="meta-label">Due Date:</span>
-                            <span class="meta-value" id="drawer-due">-</span>
+                            <input type="date" id="drawer-due-input" style="background: var(--glass-bg); border: 1px solid var(--glass-border); color: var(--text-primary); padding: 4px 8px; border-radius: var(--radius-xs); font-size: 12px; cursor: pointer;">
+                        </div>
+                        <div class="meta-row">
+                            <span class="meta-label">Labels:</span>
+                            <select id="drawer-labels-select" multiple style="background: var(--glass-bg); border: 1px solid var(--glass-border); color: var(--text-primary); padding: 4px 8px; border-radius: var(--radius-xs); font-size: 12px; cursor: pointer; min-height: 70px;">
+                            </select>
                         </div>
                         <div class="meta-row">
                             <span class="meta-label">Priority:</span>
@@ -930,6 +952,10 @@
                         </select>
                         <button class="btn btn-dispatch" id="dispatch-btn">Dispatch</button>
                     </div>
+
+                    <div class="divider"></div>
+
+                    <button id="close-issue-btn" style="width: 100%; padding: 10px; background: rgba(255, 95, 109, 0.15); border: 1px solid var(--danger); color: var(--danger); border-radius: var(--radius-sm); cursor: pointer; font-weight: 500; font-size: 14px; transition: var(--transition);">✕ Close Issue</button>
                 </div>
             </div>
         </div>
@@ -944,12 +970,10 @@
             try {
                 // Build query parameters from filters
                 const params = new URLSearchParams();
-                const agentFilter = document.getElementById('agent-filter').value;
                 const urgencyFilter = document.getElementById('urgency-filter').value;
                 const dateFromFilter = document.getElementById('date-from-filter').value;
                 const dateToFilter = document.getElementById('date-to-filter').value;
 
-                if (agentFilter) params.append('agent', agentFilter);
                 if (urgencyFilter) params.append('urgency', urgencyFilter);
                 if (dateFromFilter) params.append('date_from', dateFromFilter);
                 if (dateToFilter) params.append('date_to', dateToFilter);
@@ -968,17 +992,6 @@
                     allIssues.push(...col);
                 });
 
-                // Populate agent filter (only on initial load)
-                const agentSelect = document.getElementById('agent-filter');
-                if (agentSelect.options.length === 1) {  // Only if "All Agents" option exists
-                    data.agents.forEach(agent => {
-                        const option = document.createElement('option');
-                        option.value = agent;
-                        option.textContent = agent.charAt(0).toUpperCase() + agent.slice(1);
-                        agentSelect.appendChild(option);
-                    });
-                }
-
                 renderBoard();
                 updateSyncStatus(data.filters_applied ? '🔍 Filtered' : '✅ Ready');
             } catch (error) {
@@ -990,6 +1003,17 @@
         function filterIssues() {
             // Filters are now applied server-side via API
             filteredIssues = allIssues;
+
+            // Apply client-side search filter
+            const searchTerm = document.getElementById('search-input').value.toLowerCase();
+            if (searchTerm) {
+                filteredIssues = filteredIssues.filter(issue => {
+                    const titleMatch = issue.title.toLowerCase().includes(searchTerm);
+                    const bodyMatch = issue.body && issue.body.toLowerCase().includes(searchTerm);
+                    const idMatch = issue.id.toString().includes(searchTerm);
+                    return titleMatch || bodyMatch || idMatch;
+                });
+            }
         }
 
         function renderBoard() {
@@ -1046,6 +1070,35 @@
             document.getElementById('kanban').style.display = 'grid';
         }
 
+        const LABEL_COLOR_PALETTE = [
+            { bg: 'rgba(62, 207, 142, 0.25)', border: '#3ecf8e', text: '#3ecf8e' },      // Emerald
+            { bg: 'rgba(245, 197, 66, 0.25)', border: '#f5c542', text: '#f5c542' },      // Gold
+            { bg: 'rgba(255, 95, 109, 0.25)', border: '#ff5f6d', text: '#ff5f6d' },      // Red
+            { bg: 'rgba(88, 166, 255, 0.25)', border: '#58a6ff', text: '#58a6ff' },      // Blue
+            { bg: 'rgba(200, 124, 255, 0.25)', border: '#c87cff', text: '#c87cff' },    // Purple
+            { bg: 'rgba(255, 159, 64, 0.25)', border: '#ff9f40', text: '#ff9f40' },      // Orange
+            { bg: 'rgba(76, 194, 216, 0.25)', border: '#4cc2d8', text: '#4cc2d8' },      // Cyan
+            { bg: 'rgba(255, 107, 107, 0.25)', border: '#ff6b6b', text: '#ff6b6b' },    // Coral
+            { bg: 'rgba(165, 142, 251, 0.25)', border: '#a58efb', text: '#a58efb' },    // Light Purple
+            { bg: 'rgba(72, 220, 161, 0.25)', border: '#48dca1', text: '#48dca1' },     // Mint
+            { bg: 'rgba(255, 192, 203, 0.25)', border: '#ffc0cb', text: '#ffc0cb' },    // Pink
+            { bg: 'rgba(144, 238, 144, 0.25)', border: '#90ee90', text: '#90ee90' },    // Light Green
+            { bg: 'rgba(255, 218, 121, 0.25)', border: '#ffda79', text: '#ffda79' },    // Light Gold
+            { bg: 'rgba(135, 206, 250, 0.25)', border: '#87cefa', text: '#87cefa' },    // Sky Blue
+            { bg: 'rgba(221, 160, 221, 0.25)', border: '#dda0dd', text: '#dda0dd' },    // Plum
+        ];
+
+        // Assign colors in order of first appearance, so distinct labels never collide
+        const labelColorAssignments = new Map();
+
+        function getLabelColor(labelName) {
+            if (!labelColorAssignments.has(labelName)) {
+                const index = labelColorAssignments.size % LABEL_COLOR_PALETTE.length;
+                labelColorAssignments.set(labelName, LABEL_COLOR_PALETTE[index]);
+            }
+            return labelColorAssignments.get(labelName);
+        }
+
         function createCard(issue) {
             const card = document.createElement('div');
             card.className = 'card';
@@ -1088,8 +1141,35 @@
                 metaHtml += `<span class="badge priority-high">⚡ ${issue.priority}</span>`;
             }
 
+            let labelsHtml = '';
+            if (issue.labels && issue.labels.length > 0) {
+                labelsHtml = `
+                    <div style="display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0;">
+                        ${issue.labels.map(label => {
+                            const color = getLabelColor(label);
+                            return `
+                                <span style="
+                                    display: inline-block;
+                                    padding: 4px 8px;
+                                    background: ${color.bg};
+                                    border: 1px solid ${color.border};
+                                    border-radius: var(--radius-xs);
+                                    font-size: 11px;
+                                    color: ${color.text};
+                                    white-space: nowrap;
+                                    overflow: hidden;
+                                    text-overflow: ellipsis;
+                                    font-weight: 500;
+                                ">${label}</span>
+                            `;
+                        }).join('')}
+                    </div>
+                `;
+            }
+
             card.innerHTML = `
                 <div class="card-title">#${issue.id} ${issue.title}</div>
+                ${labelsHtml}
                 <div class="card-meta">${metaHtml}</div>
                 <div class="card-footer">
                     <small style="color: var(--text-muted);">Click to view details</small>
@@ -1114,6 +1194,8 @@
             const statusMap = {
                 'column-todo': 'todo',
                 'column-in-progress': 'in-progress',
+                'column-ai-active': 'ai-active',
+                'column-pending-review': 'pending-review',
                 'column-done': 'done'
             };
 
@@ -1182,7 +1264,7 @@
         }
 
         // Event listeners
-        document.getElementById('agent-filter').addEventListener('change', () => {
+        document.getElementById('search-input').addEventListener('input', () => {
             renderBoard();
         });
 
@@ -1251,6 +1333,76 @@
         document.getElementById('date-to-filter').addEventListener('change', () => {
             updateQuickFilterButtons(null);
             renderBoard();
+        });
+
+        // Auto-refresh functionality
+        const REFRESH_INTERVAL = 60000; // 60 seconds
+        let refreshCountdown = REFRESH_INTERVAL / 1000;
+        let refreshTimerInterval = null;
+        let autoRefreshInterval = null;
+
+        function resetRefreshTimer() {
+            refreshCountdown = REFRESH_INTERVAL / 1000;
+            updateRefreshDisplay();
+        }
+
+        function updateRefreshDisplay() {
+            const timerEl = document.getElementById('refresh-timer');
+            if (refreshCountdown > 0) {
+                timerEl.textContent = `Auto in ${refreshCountdown}s`;
+            }
+        }
+
+        function startAutoRefreshTimer() {
+            if (refreshTimerInterval) clearInterval(refreshTimerInterval);
+            refreshTimerInterval = setInterval(() => {
+                refreshCountdown--;
+                updateRefreshDisplay();
+                if (refreshCountdown <= 0) {
+                    loadIssues();
+                    resetRefreshTimer();
+                }
+            }, 1000);
+        }
+
+        // Manual refresh button
+        document.getElementById('refresh-btn').addEventListener('click', () => {
+            loadIssues();
+            resetRefreshTimer();
+        });
+
+        // Clear filters button
+        document.getElementById('clear-filters-btn').addEventListener('click', () => {
+            document.getElementById('search-input').value = '';
+            document.getElementById('urgency-filter').value = '';
+            document.getElementById('date-from-filter').value = '';
+            document.getElementById('date-to-filter').value = '';
+            updateQuickFilterButtons(null);
+            loadIssues();
+        });
+
+        // Toggle done column button
+        let isDoneHidden = false;
+        document.getElementById('toggle-done-btn').addEventListener('click', function() {
+            isDoneHidden = !isDoneHidden;
+            const doneColumn = document.querySelector('.column.done');
+            const kanban = document.getElementById('kanban');
+
+            if (isDoneHidden) {
+                doneColumn.style.display = 'none';
+                kanban.style.gridTemplateColumns = 'repeat(4, 1fr)';
+                this.textContent = '👁️ Show Done';
+                this.style.background = 'var(--accent)';
+                this.style.borderColor = 'var(--accent)';
+                this.style.color = 'white';
+            } else {
+                doneColumn.style.display = 'flex';
+                kanban.style.gridTemplateColumns = 'repeat(5, 1fr)';
+                this.textContent = '👁️ Hide Done';
+                this.style.background = 'var(--glass-bg)';
+                this.style.borderColor = 'var(--glass-border)';
+                this.style.color = 'var(--text-secondary)';
+            }
         });
 
         // Drawer functions
@@ -1351,12 +1503,53 @@
                 const issue = data.issue;
 
                 // Populate drawer
-                document.getElementById('drawer-title').textContent = `#${issue.id} ${issue.title}`;
+                document.getElementById('drawer-title').innerHTML = `<a href="${issue.url}" target="_blank" style="color: var(--accent); text-decoration: none; cursor: pointer;">##${issue.id}</a> ${issue.title}`;
+                document.getElementById('drawer-issue-number').innerHTML = `<a href="${issue.url}" target="_blank" style="color: var(--accent); text-decoration: none; cursor: pointer; font-weight: 500;">#${issue.id}</a>`;
                 document.getElementById('drawer-status').textContent = issue.status.toUpperCase();
-                document.getElementById('drawer-agent').textContent = issue.agent || '-';
-                document.getElementById('drawer-due').textContent = issue.due_date_str || '-';
                 document.getElementById('drawer-priority').textContent = issue.priority || 'normal';
                 document.getElementById('drawer-body').textContent = issue.body || '(No description)';
+
+                // Populate agent dropdown
+                const agentSelect = document.getElementById('drawer-agent-select');
+                agentSelect.value = issue.agent || '';
+
+                // Populate due date input
+                const dueInput = document.getElementById('drawer-due-input');
+                dueInput.value = issue.due_date_str || '';
+
+                // Populate labels select
+                const labelsSelect = document.getElementById('drawer-labels-select');
+                labelsSelect.innerHTML = '';
+                // Get all unique labels from all issues
+                const allLabels = new Set();
+                allIssues.forEach(i => {
+                    if (i.labels) {
+                        i.labels.forEach(label => allLabels.add(label));
+                    }
+                });
+                Array.from(allLabels).sort().forEach(label => {
+                    const option = document.createElement('option');
+                    option.value = label;
+                    option.textContent = label;
+                    if (issue.labels && issue.labels.includes(label)) {
+                        option.selected = true;
+                    }
+                    labelsSelect.appendChild(option);
+                });
+
+                // Add event listeners to metadata selects
+                agentSelect.addEventListener('change', (e) => {
+                    updateIssueMetadata(issue.id, 'agent', e.target.value);
+                });
+
+                dueInput.addEventListener('change', (e) => {
+                    updateIssueMetadata(issue.id, 'due_date', e.target.value);
+                });
+
+                labelsSelect.addEventListener('change', (e) => {
+                    const selectedLabels = Array.from(labelsSelect.selectedOptions).map(opt => opt.value);
+                    updateIssueMetadata(issue.id, 'labels', selectedLabels);
+                });
 
                 // Populate comments
                 const commentsList = document.getElementById('comments-list');
@@ -1407,14 +1600,78 @@
             currentIssueId = null;
         }
 
+        async function closeIssue() {
+            if (!currentIssueId) return;
+
+            if (!confirm(`Are you sure you want to close issue #${currentIssueId}?`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/api/issues/${currentIssueId}/close`, {
+                    method: 'POST'
+                });
+                const data = await response.json();
+
+                if (data.success) {
+                    closeDrawer();
+                    loadIssues();
+                } else {
+                    alert('Failed to close issue: ' + data.error);
+                }
+            } catch (error) {
+                alert('Error closing issue: ' + error.message);
+            }
+        }
+
+        async function updateIssueMetadata(issueId, type, value) {
+            try {
+                const issue = allIssues.find(i => i.id === issueId);
+                if (!issue) return;
+
+                let newLabels = [...issue.labels];
+
+                if (type === 'agent') {
+                    // Remove old agent label, add new one
+                    newLabels = newLabels.filter(l => !l.startsWith('agent:'));
+                    if (value) {
+                        newLabels.push(`agent:${value}`);
+                    }
+                } else if (type === 'due_date') {
+                    // Remove old due label, add new one
+                    newLabels = newLabels.filter(l => !l.startsWith('due:'));
+                    if (value) {
+                        newLabels.push(`due:${value}`);
+                    }
+                } else if (type === 'labels') {
+                    // Replace labels (excluding status and agent labels)
+                    newLabels = newLabels.filter(l => l.startsWith('status:') || l.startsWith('agent:') || l.startsWith('due:') || l.startsWith('priority:'));
+                    newLabels.push(...value);
+                }
+
+                // Update via API
+                const response = await fetch(`${API_BASE}/api/issues/${issueId}/status`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ labels: newLabels })
+                });
+
+                if (response.ok) {
+                    loadIssues();
+                }
+            } catch (error) {
+                console.error('Error updating metadata:', error);
+            }
+        }
+
         // Drawer event listeners
         document.getElementById('drawer-close').addEventListener('click', closeDrawer);
         document.getElementById('drawer-overlay').addEventListener('click', closeDrawer);
         document.getElementById('post-comment-btn').addEventListener('click', postComment);
         document.getElementById('dispatch-btn').addEventListener('click', dispatchIssue);
+        document.getElementById('close-issue-btn').addEventListener('click', closeIssue);
 
-        // Populate agent dropdown on load
-        async function populateAgentDropdown() {
+        async function populateDispatchAgentDropdown() {
             try {
                 const response = await fetch(`${API_BASE}/api/config`);
                 const data = await response.json();
@@ -1452,7 +1709,8 @@
 
         // Initial load
         loadIssues();
-        populateAgentDropdown();
+        populateDispatchAgentDropdown();
+        startAutoRefreshTimer();
 
         // Setup drag and drop after initial render
         setTimeout(setupDragAndDrop, 500);

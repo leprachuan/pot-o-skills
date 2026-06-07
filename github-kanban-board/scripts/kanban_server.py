@@ -12,10 +12,62 @@ from pathlib import Path
 from typing import Dict, List, Optional
 
 import click
+import requests
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 from github import Github
 from dateutil.parser import parse as parse_date
+
+# Wee Orchestrator background-task dispatch
+AGENTS_CONFIG_PATH = Path(os.environ.get("WEE_AGENTS_CONFIG", "/mnt/nas/Agents/agents.json"))
+WEE_API_BASE = os.environ.get("WEE_API_BASE", "https://127.0.0.1:8000")
+WEE_API_KEY = os.environ.get("WEE_API_KEY") or os.environ.get("API_SHARED_KEY")
+
+
+def get_agent_dispatch_config(agent_name: str) -> Dict:
+    """Look up an agent's runtime/model/permission settings from agents.json."""
+    with open(AGENTS_CONFIG_PATH) as f:
+        agents_config = json.load(f)
+
+    for agent in agents_config.get("agents", []):
+        if agent.get("name") == agent_name:
+            return {
+                "runtime": agent.get("primary_runtime", "copilot"),
+                "model": agent.get("primary_model", "auto"),
+                "permission_mode": agent.get("permissions", {}).get("mode", "restricted"),
+            }
+
+    raise ValueError(f"Agent '{agent_name}' not found in agents.json")
+
+
+def dispatch_background_task(agent_name: str, prompt: str, timeout: int = 3600) -> Dict:
+    """Launch a background agent task via the Wee Orchestrator API."""
+    if not WEE_API_KEY:
+        raise RuntimeError("No Wee Orchestrator API key configured (set WEE_API_KEY)")
+
+    cfg = get_agent_dispatch_config(agent_name)
+
+    payload = {
+        "prompt": prompt,
+        "agent": agent_name,
+        "runtime": cfg["runtime"],
+        "model": cfg["model"],
+        "permission_mode": cfg["permission_mode"],
+        "timeout": timeout,
+    }
+
+    response = requests.post(
+        f"{WEE_API_BASE}/api/v1/background-tasks",
+        json=payload,
+        headers={
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer shared_{WEE_API_KEY}",
+        },
+        verify=False,
+        timeout=30,
+    )
+    response.raise_for_status()
+    return response.json()
 
 app = Flask(__name__)
 CORS(app)
@@ -113,6 +165,9 @@ def issue_to_dict(issue) -> Dict:
     """Convert GitHub issue to kanban card dict."""
     labels_data = extract_labels_data(issue.labels)
 
+    # A closed issue is always "done" on the board, regardless of status label
+    status = "done" if issue.state == "closed" else labels_data["status"]
+
     return {
         "id": issue.number,
         "title": issue.title,
@@ -124,7 +179,7 @@ def issue_to_dict(issue) -> Dict:
         "due_date_str": labels_data["due_date_str"],
         "priority": labels_data["priority"],
         "urgency": labels_data["urgency"],
-        "status": labels_data["status"],
+        "status": status,
         "labels": labels_data["all_labels"],
         "created_at": issue.created_at.isoformat(),
         "updated_at": issue.updated_at.isoformat(),
@@ -134,10 +189,10 @@ def issue_to_dict(issue) -> Dict:
 
 @app.route("/api/issues", methods=["GET"])
 def get_issues():
-    """Fetch all open issues from repository with optional filtering."""
+    """Fetch all issues from repository with optional filtering. Closed issues show as 'done'."""
     try:
         repo = GITHUB_CLIENT.get_repo(REPO_NAME)
-        issues = repo.get_issues(state="open")
+        issues = repo.get_issues(state="all")
 
         cards = [issue_to_dict(issue) for issue in issues]
 
@@ -227,24 +282,49 @@ def get_issue_details(issue_num: int):
 
 @app.route("/api/issues/<int:issue_num>/status", methods=["POST"])
 def update_issue_status(issue_num: int):
-    """Update issue status by adding/removing status label."""
+    """Update issue status or labels."""
     try:
         data = request.json
-        new_status = data.get("status")  # todo, in-progress, done
-
-        if new_status not in ["todo", "in-progress", "ai-active", "pending-review", "done"]:
-            return jsonify({"success": False, "error": "Invalid status"}), 400
+        new_status = data.get("status")
+        new_labels = data.get("labels")
 
         repo = GITHUB_CLIENT.get_repo(REPO_NAME)
         issue = repo.get_issue(issue_num)
 
-        # Remove old status labels
-        old_labels = [l.name for l in issue.labels if not l.name.startswith("status:")]
+        if new_status:
+            if new_status not in ["todo", "in-progress", "ai-active", "pending-review", "done"]:
+                return jsonify({"success": False, "error": "Invalid status"}), 400
 
-        # Add new status label
-        new_labels = old_labels + [f"status:{new_status}"]
+            if new_status == "done":
+                # "Done" means closed on GitHub - no status label needed
+                issue.edit(state="closed")
+            else:
+                # Reopen if moving out of done/closed
+                if issue.state == "closed":
+                    issue.edit(state="open")
 
-        issue.set_labels(*new_labels)
+                # Remove old status labels
+                old_labels = [l.name for l in issue.labels if not l.name.startswith("status:")]
+                # Add new status label
+                updated_labels = old_labels + [f"status:{new_status}"]
+                issue.set_labels(*updated_labels)
+
+        elif new_labels:
+            # Update with new labels
+            issue.set_labels(*new_labels)
+
+        return jsonify({"success": True, "issue": issue_to_dict(issue)})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route("/api/issues/<int:issue_num>/close", methods=["POST"])
+def close_issue(issue_num: int):
+    """Close a GitHub issue."""
+    try:
+        repo = GITHUB_CLIENT.get_repo(REPO_NAME)
+        issue = repo.get_issue(issue_num)
+        issue.edit(state="closed")
 
         return jsonify({"success": True, "issue": issue_to_dict(issue)})
     except Exception as e:
@@ -280,7 +360,7 @@ def post_comment(issue_num: int):
 
 @app.route("/api/issues/<int:issue_num>/dispatch", methods=["POST"])
 def dispatch_issue(issue_num: int):
-    """Dispatch issue to an agent (logs the intent)."""
+    """Dispatch issue to an agent as a real background task via the Wee Orchestrator API."""
     try:
         data = request.json
         agent_name = data.get("agent", "").strip()
@@ -291,16 +371,24 @@ def dispatch_issue(issue_num: int):
         repo = GITHUB_CLIENT.get_repo(REPO_NAME)
         issue = repo.get_issue(issue_num)
 
-        # In a real implementation, you would send this to your agent system
-        # For now, we'll log it and return success
-        dispatch_message = f"[DISPATCH] Issue #{issue_num} dispatched to agent: {agent_name}\nTitle: {issue.title}\nBody: {issue.body}"
+        prompt = (
+            f"Work on GitHub issue #{issue_num} in {REPO_NAME}: {issue.title}\n\n"
+            f"Issue body:\n{issue.body or '(no description)'}\n\n"
+            f"Read the issue and its latest comments at {issue.html_url} and complete the requested work. "
+            f"Keep the GitHub issue updated throughout your work by posting progress comments. "
+            f"When you are done or need input, leave a summary comment and the issue will be moved to Pending Review."
+        )
+
+        task = dispatch_background_task(agent_name, prompt)
 
         return jsonify({
             "success": True,
             "agent": agent_name,
             "issue_num": issue_num,
             "issue_title": issue.title,
-            "message": f"Issue dispatched to {agent_name}"
+            "task_id": task.get("task_id"),
+            "session_id": task.get("session_id"),
+            "message": f"Issue dispatched to {agent_name} (task {task.get('task_id')})"
         })
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
