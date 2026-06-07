@@ -1207,6 +1207,15 @@
             }
 
             try {
+                // Post instruction comment to the agent
+                const instructionComment = `@${agentName} - This issue has been dispatched to you.\n\n**Your Task:** Complete the work described in this issue.\n\n**Important:** Please keep this GitHub issue updated throughout your work:\n- Post progress updates as comments\n- Update labels and status as needed\n- Report findings, errors, and solutions\n- This issue is the source of truth for tracking your progress\n\nWhen complete, the issue will be moved to Pending Review for approval.`;
+
+                const commentResponse = await fetch(`${API_BASE}/api/issues/${currentIssueId}/comment`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ body: instructionComment })
+                });
+
                 const response = await fetch(`${API_BASE}/api/issues/${currentIssueId}/dispatch`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
