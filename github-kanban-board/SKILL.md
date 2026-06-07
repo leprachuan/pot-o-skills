@@ -74,9 +74,21 @@ pip install -r requirements.txt
 
 ### 4. Start the Server
 
+Always run the server in the background so it persists after the shell exits:
+
 ```bash
-GITHUB_TOKEN=$(gh auth token) python3 scripts/kanban_server.py
+GITHUB_TOKEN=$(gh auth token) WEE_API_KEY=shared_R6R6wReORUV6bouLntScMTowbsh30Rzqa3hzjs3bWgU \
+  nohup ./venv/bin/python3 scripts/kanban_server.py --port 8888 > /tmp/kanban.log 2>&1 &
+echo "PID: $!"
 ```
+
+Verify it's up:
+```bash
+curl -s http://localhost:8888/api/config
+```
+
+To check logs: `tail -f /tmp/kanban.log`
+To stop: `kill <PID>`
 
 Open your browser: **http://localhost:8888**
 
@@ -102,16 +114,16 @@ Environment variables override `config.json`:
 
 ```bash
 # Switch repository dynamically
-KANBAN_REPO=org/different-repo python3 scripts/kanban_server.py
+KANBAN_REPO=org/different-repo nohup ./venv/bin/python3 scripts/kanban_server.py > /tmp/kanban.log 2>&1 &
 
 # Change port
-KANBAN_PORT=9999 python3 scripts/kanban_server.py
+KANBAN_PORT=9999 nohup ./venv/bin/python3 scripts/kanban_server.py > /tmp/kanban.log 2>&1 &
 
 # Bind to specific host
-KANBAN_HOST=127.0.0.1 python3 scripts/kanban_server.py
+KANBAN_HOST=127.0.0.1 nohup ./venv/bin/python3 scripts/kanban_server.py > /tmp/kanban.log 2>&1 &
 
 # GitHub authentication (required)
-GITHUB_TOKEN=ghp_xxxxxxxxxxxx python3 scripts/kanban_server.py
+GITHUB_TOKEN=ghp_xxxxxxxxxxxx nohup ./venv/bin/python3 scripts/kanban_server.py > /tmp/kanban.log 2>&1 &
 ```
 
 ### Authentication
@@ -119,12 +131,13 @@ GITHUB_TOKEN=ghp_xxxxxxxxxxxx python3 scripts/kanban_server.py
 The board requires a GitHub personal access token:
 
 ```bash
-# Using gh CLI (recommended)
-GITHUB_TOKEN=$(gh auth token) python3 scripts/kanban_server.py
+# Using gh CLI (recommended) — run in background
+GITHUB_TOKEN=$(gh auth token) WEE_API_KEY=shared_R6R6wReORUV6bouLntScMTowbsh30Rzqa3hzjs3bWgU \
+  nohup ./venv/bin/python3 scripts/kanban_server.py > /tmp/kanban.log 2>&1 &
 
 # Or set manually
 export GITHUB_TOKEN=ghp_xxxxxxxxxxxx
-python3 scripts/kanban_server.py
+nohup ./venv/bin/python3 scripts/kanban_server.py > /tmp/kanban.log 2>&1 &
 ```
 
 **Permissions Required:**
@@ -360,8 +373,12 @@ Get server configuration.
 ### Local Testing
 
 ```bash
-source venv/bin/activate
-GITHUB_TOKEN=$(gh auth token) python3 scripts/kanban_server.py
+cd /mnt/nas/Agents/pot-o-skills/github-kanban-board
+GITHUB_TOKEN=$(gh auth token) WEE_API_KEY=shared_R6R6wReORUV6bouLntScMTowbsh30Rzqa3hzjs3bWgU \
+  nohup ./venv/bin/python3 scripts/kanban_server.py --port 8888 > /tmp/kanban.log 2>&1 &
+echo "PID: $!"
+# Verify
+curl -s http://localhost:8888/api/config
 ```
 
 Visit: http://localhost:8888
