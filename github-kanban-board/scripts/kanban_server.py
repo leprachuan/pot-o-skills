@@ -221,6 +221,8 @@ def get_issues():
         columns = {
             "todo": [c for c in cards if c["status"] == "todo"],
             "in-progress": [c for c in cards if c["status"] == "in-progress"],
+            "ai-active": [c for c in cards if c["status"] == "ai-active"],
+            "pending-review": [c for c in cards if c["status"] == "pending-review"],
             "done": [c for c in cards if c["status"] == "done"],
         }
 
