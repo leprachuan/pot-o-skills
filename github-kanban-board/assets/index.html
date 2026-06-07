@@ -206,6 +206,14 @@
             color: var(--gold);
         }
 
+        .column-header.ai-active {
+            color: #9d4edd;
+        }
+
+        .column-header.pending-review {
+            color: #ff006e;
+        }
+
         .column-header.done {
             color: var(--accent);
         }
@@ -808,6 +816,20 @@
                 </div>
                 <div class="column-body" id="column-in-progress"></div>
             </div>
+            <div class="column ai-active">
+                <div class="column-header ai-active">
+                    <span>🤖 AI Active</span>
+                    <span class="column-count" id="count-ai-active">0</span>
+                </div>
+                <div class="column-body" id="column-ai-active"></div>
+            </div>
+            <div class="column pending-review">
+                <div class="column-header pending-review">
+                    <span>👀 Pending Review</span>
+                    <span class="column-count" id="count-pending-review">0</span>
+                </div>
+                <div class="column-body" id="column-pending-review"></div>
+            </div>
             <div class="column done">
                 <div class="column-header done">
                     <span>✅ Done</span>
@@ -942,6 +964,8 @@
             const columns = {
                 'todo': document.getElementById('column-todo'),
                 'in-progress': document.getElementById('column-in-progress'),
+                'ai-active': document.getElementById('column-ai-active'),
+                'pending-review': document.getElementById('column-pending-review'),
                 'done': document.getElementById('column-done')
             };
 
@@ -952,6 +976,8 @@
             const grouped = {
                 'todo': [],
                 'in-progress': [],
+                'ai-active': [],
+                'pending-review': [],
                 'done': []
             };
 
@@ -1193,8 +1219,21 @@
                     return;
                 }
 
-                alert(`✅ Dispatched to ${agentName}\n\nThe agent will now read the issue and take action based on the description and latest comment.`);
-                agentSelect.value = '';  // Reset dropdown
+                // Update issue status to ai-active
+                const statusResponse = await fetch(`${API_BASE}/api/issues/${currentIssueId}/status`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ status: 'ai-active' })
+                });
+
+                if (statusResponse.ok) {
+                    alert(`✅ Dispatched to ${agentName}\n\nThe issue is now marked as AI Active.\nThe agent will read the issue and take action based on the description and latest comment.`);
+                    agentSelect.value = '';  // Reset dropdown
+                    closeDrawer();
+                    renderBoard();  // Refresh to move card to AI-ACTIVE column
+                } else {
+                    alert('✅ Dispatch submitted, but failed to update status. Please refresh.');
+                }
             } catch (error) {
                 alert('Error dispatching: ' + error.message);
             }

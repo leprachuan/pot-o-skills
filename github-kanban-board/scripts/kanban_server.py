@@ -103,7 +103,7 @@ def extract_labels_data(labels: List) -> Dict:
             data["priority"] = name.replace("priority:", "")
 
         # Parse status
-        elif name in ["status:todo", "status:in-progress", "status:done"]:
+        elif name in ["status:todo", "status:in-progress", "status:ai-active", "status:pending-review", "status:done"]:
             data["status"] = name.replace("status:", "")
 
     return data
@@ -232,7 +232,7 @@ def update_issue_status(issue_num: int):
         data = request.json
         new_status = data.get("status")  # todo, in-progress, done
 
-        if new_status not in ["todo", "in-progress", "done"]:
+        if new_status not in ["todo", "in-progress", "ai-active", "pending-review", "done"]:
             return jsonify({"success": False, "error": "Invalid status"}), 400
 
         repo = GITHUB_CLIENT.get_repo(REPO_NAME)
