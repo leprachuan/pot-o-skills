@@ -198,6 +198,33 @@ def get_issue(issue_num: int):
         return jsonify({"success": False, "error": str(e)}), 500
 
 
+@app.route("/api/issues/<int:issue_num>/details", methods=["GET"])
+def get_issue_details(issue_num: int):
+    """Fetch issue details including comments."""
+    try:
+        repo = GITHUB_CLIENT.get_repo(REPO_NAME)
+        issue = repo.get_issue(issue_num)
+
+        # Get comments
+        comments = []
+        for comment in issue.get_comments():
+            comments.append({
+                "author": comment.user.login,
+                "avatar": comment.user.avatar_url,
+                "created_at": comment.created_at.isoformat(),
+                "updated_at": comment.updated_at.isoformat(),
+                "body": comment.body,
+            })
+
+        issue_data = issue_to_dict(issue)
+        issue_data["comments"] = comments
+        issue_data["comment_count"] = len(comments)
+
+        return jsonify({"success": True, "issue": issue_data})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
 @app.route("/api/issues/<int:issue_num>/status", methods=["POST"])
 def update_issue_status(issue_num: int):
     """Update issue status by adding/removing status label."""
