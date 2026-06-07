@@ -1,0 +1,12 @@
+{
+  "repository": "owner/repo-name",
+  "port": 8888,
+  "host": "0.0.0.0",
+  "default_agents": [],
+  "enable_status_sync": true,
+  "columns": {
+    "todo": "To Do",
+    "in-progress": "In Progress",
+    "done": "Done"
+  }
+}

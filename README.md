@@ -10,6 +10,7 @@ pot-o-skills provides comprehensive automation skills for enterprise platforms a
 
 | Skill | Purpose | Status |
 |-------|---------|--------|
+| **[GitHub Kanban Board](./github-kanban-board/)** | Beautiful kanban board for GitHub issues with agent labels and due dates | ✅ Production Ready |
 | **[Google Workspace CLI](./gws-workspace/)** | Unified interface for Gmail, Drive, Calendar, Sheets, Docs, and all Workspace APIs | ✅ Production Ready |
 | **[Cisco Meraki](./cisco-meraki/)** | Cloud networking, WiFi, switches, firewalls, device management | ✅ Production Ready |
 | **[Cisco Security Cloud Control](./cisco-security-cloud-control/)** | Organization management, firewall policies, threat detection | ✅ Production Ready |
