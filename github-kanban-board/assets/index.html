@@ -452,11 +452,11 @@
         }
 
         .drawer-panel {
-            position: absolute;
+            position: fixed;
             top: 0;
             right: 0;
             width: 450px;
-            height: 100%;
+            height: 100vh;
             background: var(--glass-bg);
             border-left: 1px solid var(--glass-border);
             backdrop-filter: var(--glass-blur);
@@ -515,6 +515,107 @@
             display: flex;
             flex-direction: column;
             gap: 16px;
+            min-height: 0;
+        }
+
+        .drawer-footer {
+            border-top: 1px solid var(--glass-border);
+            padding: 16px 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            flex-shrink: 0;
+            background: var(--surface-raised);
+        }
+
+        .comment-input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .comment-input {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius-sm);
+            color: var(--text-primary);
+            padding: 8px 12px;
+            font-family: var(--font);
+            font-size: 13px;
+            resize: none;
+            height: 60px;
+            transition: var(--transition);
+        }
+
+        .comment-input::placeholder {
+            color: var(--text-muted);
+        }
+
+        .comment-input:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px var(--accent-glow);
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 8px 12px;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--glass-border);
+            background: var(--surface-raised);
+            color: var(--text-primary);
+            font-family: var(--font);
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .btn:hover {
+            background: var(--glass-bg);
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        .btn-dispatch {
+            flex: 1.5;
+            background: rgba(62, 207, 142, 0.15);
+            border-color: rgba(62, 207, 142, 0.3);
+            color: var(--accent);
+        }
+
+        .btn-dispatch:hover {
+            background: rgba(62, 207, 142, 0.25);
+            border-color: var(--accent);
+        }
+
+        .dispatch-group {
+            display: flex;
+            gap: 8px;
+        }
+
+        .dispatch-select {
+            flex: 1;
+            background: var(--surface-raised);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius-sm);
+            color: var(--text-primary);
+            padding: 8px 12px;
+            font-family: var(--font);
+            font-size: 13px;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .dispatch-select:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px var(--accent-glow);
         }
 
         .issue-meta {
@@ -756,6 +857,22 @@
                     <div class="issue-comments">
                         <h3>Comments (<span id="comment-count">0</span>)</h3>
                         <div id="comments-list" class="comments-list"></div>
+                    </div>
+                </div>
+
+                <div class="drawer-footer">
+                    <div class="comment-input-group">
+                        <textarea class="comment-input" id="comment-textarea" placeholder="Add a comment..."></textarea>
+                        <button class="btn" id="post-comment-btn">Post Comment</button>
+                    </div>
+
+                    <div class="divider"></div>
+
+                    <div class="dispatch-group">
+                        <select class="dispatch-select" id="dispatch-agent">
+                            <option value="">Select Agent...</option>
+                        </select>
+                        <button class="btn btn-dispatch" id="dispatch-btn">Dispatch</button>
                     </div>
                 </div>
             </div>
@@ -1022,7 +1139,69 @@
         });
 
         // Drawer functions
+        let currentIssueId = null;
+
+        async function postComment() {
+            const commentText = document.getElementById('comment-textarea').value.trim();
+            if (!commentText) {
+                alert('Please enter a comment');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/api/issues/${currentIssueId}/comment`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ body: commentText })
+                });
+
+                const data = await response.json();
+                if (!data.success) {
+                    alert('Failed to post comment: ' + data.error);
+                    return;
+                }
+
+                // Clear input
+                document.getElementById('comment-textarea').value = '';
+
+                // Reload issue details to show new comment
+                await loadIssueDetails(currentIssueId);
+            } catch (error) {
+                alert('Error posting comment: ' + error.message);
+            }
+        }
+
+        async function dispatchIssue() {
+            const agentSelect = document.getElementById('dispatch-agent');
+            const agentName = agentSelect.value;
+
+            if (!agentName) {
+                alert('Please select an agent');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/api/issues/${currentIssueId}/dispatch`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ agent: agentName })
+                });
+
+                const data = await response.json();
+                if (!data.success) {
+                    alert('Failed to dispatch: ' + data.error);
+                    return;
+                }
+
+                alert(`✅ Dispatched to ${agentName}\n\nThe agent will now read the issue and take action based on the description and latest comment.`);
+                agentSelect.value = '';  // Reset dropdown
+            } catch (error) {
+                alert('Error dispatching: ' + error.message);
+            }
+        }
+
         async function loadIssueDetails(issueId) {
+            currentIssueId = issueId;
             try {
                 const response = await fetch(`${API_BASE}/api/issues/${issueId}/details`);
                 const data = await response.json();
@@ -1086,11 +1265,36 @@
 
         function closeDrawer() {
             document.getElementById('issue-drawer').classList.remove('open');
+            document.getElementById('comment-textarea').value = '';
+            document.getElementById('dispatch-agent').value = '';
+            currentIssueId = null;
         }
 
         // Drawer event listeners
         document.getElementById('drawer-close').addEventListener('click', closeDrawer);
         document.getElementById('drawer-overlay').addEventListener('click', closeDrawer);
+        document.getElementById('post-comment-btn').addEventListener('click', postComment);
+        document.getElementById('dispatch-btn').addEventListener('click', dispatchIssue);
+
+        // Populate agent dropdown on load
+        async function populateAgentDropdown() {
+            try {
+                const response = await fetch(`${API_BASE}/api/config`);
+                const data = await response.json();
+                const agentSelect = document.getElementById('dispatch-agent');
+
+                if (data.default_agents && data.default_agents.length > 0) {
+                    data.default_agents.forEach(agent => {
+                        const option = document.createElement('option');
+                        option.value = agent;
+                        option.textContent = agent.charAt(0).toUpperCase() + agent.slice(1);
+                        agentSelect.appendChild(option);
+                    });
+                }
+            } catch (error) {
+                console.error('Error loading agents:', error);
+            }
+        }
 
         // Add click handlers to cards in renderBoard
         const originalRenderBoard = renderBoard;
@@ -1111,6 +1315,7 @@
 
         // Initial load
         loadIssues();
+        populateAgentDropdown();
 
         // Setup drag and drop after initial render
         setTimeout(setupDragAndDrop, 500);

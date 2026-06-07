@@ -2,7 +2,7 @@
   "repository": "leprachuan/fosterbot-home",
   "port": 8888,
   "host": "0.0.0.0",
-  "default_agents": [],
+  "default_agents": ["devops", "research", "opencode", "orchestrator"],
   "enable_status_sync": true,
   "columns": {
     "todo": "To Do",

@@ -251,6 +251,61 @@ def update_issue_status(issue_num: int):
         return jsonify({"success": False, "error": str(e)}), 500
 
 
+@app.route("/api/issues/<int:issue_num>/comment", methods=["POST"])
+def post_comment(issue_num: int):
+    """Post a comment to an issue."""
+    try:
+        data = request.json
+        comment_text = data.get("body", "").strip()
+
+        if not comment_text:
+            return jsonify({"success": False, "error": "Comment cannot be empty"}), 400
+
+        repo = GITHUB_CLIENT.get_repo(REPO_NAME)
+        issue = repo.get_issue(issue_num)
+        comment = issue.create_comment(comment_text)
+
+        return jsonify({
+            "success": True,
+            "comment": {
+                "author": comment.user.login,
+                "avatar": comment.user.avatar_url,
+                "created_at": comment.created_at.isoformat(),
+                "body": comment.body,
+            }
+        })
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route("/api/issues/<int:issue_num>/dispatch", methods=["POST"])
+def dispatch_issue(issue_num: int):
+    """Dispatch issue to an agent (logs the intent)."""
+    try:
+        data = request.json
+        agent_name = data.get("agent", "").strip()
+
+        if not agent_name:
+            return jsonify({"success": False, "error": "Agent not specified"}), 400
+
+        repo = GITHUB_CLIENT.get_repo(REPO_NAME)
+        issue = repo.get_issue(issue_num)
+
+        # In a real implementation, you would send this to your agent system
+        # For now, we'll log it and return success
+        dispatch_message = f"[DISPATCH] Issue #{issue_num} dispatched to agent: {agent_name}\nTitle: {issue.title}\nBody: {issue.body}"
+
+        return jsonify({
+            "success": True,
+            "agent": agent_name,
+            "issue_num": issue_num,
+            "issue_title": issue.title,
+            "message": f"Issue dispatched to {agent_name}"
+        })
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
 @app.route("/api/config", methods=["GET"])
 def get_config_endpoint():
     """Get server configuration."""
