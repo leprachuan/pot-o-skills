@@ -66,12 +66,13 @@ def init_github(token: Optional[str] = None):
 
 
 def extract_labels_data(labels: List) -> Dict:
-    """Extract agent and due date from issue labels."""
+    """Extract agent, due date, urgency, and priority from issue labels."""
     data = {
         "agent": None,
         "due_date": None,
         "due_date_str": None,
         "priority": "normal",
+        "urgency": "normal",  # urgent or normal
         "status": "todo",
         "all_labels": [label.name for label in labels],
     }
@@ -92,6 +93,10 @@ def extract_labels_data(labels: List) -> Dict:
                 data["due_date_str"] = due_date.strftime("%Y-%m-%d")
             except:
                 pass
+
+        # Parse urgency
+        elif name in ["urgent", "urgency:urgent", "urgency:high"]:
+            data["urgency"] = "urgent"
 
         # Parse priority
         elif name in ["priority:critical", "priority:high", "priority:medium", "priority:low"]:
@@ -118,6 +123,7 @@ def issue_to_dict(issue) -> Dict:
         "due_date": labels_data["due_date"],
         "due_date_str": labels_data["due_date_str"],
         "priority": labels_data["priority"],
+        "urgency": labels_data["urgency"],
         "status": labels_data["status"],
         "labels": labels_data["all_labels"],
         "created_at": issue.created_at.isoformat(),
@@ -128,12 +134,33 @@ def issue_to_dict(issue) -> Dict:
 
 @app.route("/api/issues", methods=["GET"])
 def get_issues():
-    """Fetch all open issues from repository."""
+    """Fetch all open issues from repository with optional filtering."""
     try:
         repo = GITHUB_CLIENT.get_repo(REPO_NAME)
         issues = repo.get_issues(state="open")
 
         cards = [issue_to_dict(issue) for issue in issues]
+
+        # Apply filters
+        date_from = request.args.get("date_from")  # YYYY-MM-DD
+        date_to = request.args.get("date_to")      # YYYY-MM-DD
+        urgency_filter = request.args.get("urgency")  # urgent or normal
+
+        if date_from or date_to:
+            filtered_cards = []
+            for card in cards:
+                if not card["due_date_str"]:
+                    continue
+                card_date = card["due_date_str"]
+                if date_from and card_date < date_from:
+                    continue
+                if date_to and card_date > date_to:
+                    continue
+                filtered_cards.append(card)
+            cards = filtered_cards
+
+        if urgency_filter:
+            cards = [c for c in cards if c["urgency"] == urgency_filter]
 
         # Group by status (todo, in-progress, done)
         columns = {
@@ -142,15 +169,18 @@ def get_issues():
             "done": [c for c in cards if c["status"] == "done"],
         }
 
-        # Get unique agents for filtering
+        # Get unique agents and urgency levels for filtering
         agents = sorted(set(c["agent"] for c in cards if c["agent"]))
+        urgencies = sorted(set(c["urgency"] for c in cards))
 
         return jsonify(
             {
                 "success": True,
                 "columns": columns,
                 "agents": agents,
+                "urgencies": urgencies,
                 "total": len(cards),
+                "filters_applied": bool(date_from or date_to or urgency_filter),
             }
         )
     except Exception as e:

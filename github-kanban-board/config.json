@@ -1,5 +1,5 @@
 {
-  "repository": "owner/repo-name",
+  "repository": "leprachuan/fosterbot-home",
   "port": 8888,
   "host": "0.0.0.0",
   "default_agents": [],

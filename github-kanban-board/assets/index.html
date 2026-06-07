@@ -296,6 +296,42 @@
             border: 1px solid rgba(255, 95, 109, 0.3);
         }
 
+        .badge.urgency-urgent {
+            background: rgba(255, 95, 109, 0.3);
+            color: #ff3a47;
+            border: 1px solid rgba(255, 95, 109, 0.6);
+            font-weight: 700;
+            animation: pulse-urgent 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse-urgent {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        input[type="date"] {
+            background: var(--surface-raised);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius-sm);
+            color: var(--text-primary);
+            padding: 8px 12px;
+            font-family: var(--font);
+            font-size: 14px;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        input[type="date"]:hover {
+            background: var(--surface-raised);
+            border-color: var(--accent);
+        }
+
+        input[type="date"]:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px var(--accent-glow);
+        }
+
         .card-footer {
             display: flex;
             justify-content: space-between;
@@ -398,10 +434,26 @@
             </h1>
             <div class="header-controls">
                 <div class="filter-group">
-                    <label class="filter-label">Filter by Agent:</label>
+                    <label class="filter-label">Agent:</label>
                     <select id="agent-filter">
-                        <option value="">All Agents</option>
+                        <option value="">All</option>
                     </select>
+                </div>
+                <div class="filter-group">
+                    <label class="filter-label">Urgency:</label>
+                    <select id="urgency-filter">
+                        <option value="">All</option>
+                        <option value="urgent">Urgent</option>
+                        <option value="normal">Normal</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label class="filter-label">Due From:</label>
+                    <input type="date" id="date-from-filter">
+                </div>
+                <div class="filter-group">
+                    <label class="filter-label">Due To:</label>
+                    <input type="date" id="date-to-filter">
                 </div>
                 <div class="status-badge" id="sync-status">🔄 Loading...</div>
             </div>
@@ -446,7 +498,20 @@
 
         async function loadIssues() {
             try {
-                const response = await fetch(`${API_BASE}/api/issues`);
+                // Build query parameters from filters
+                const params = new URLSearchParams();
+                const agentFilter = document.getElementById('agent-filter').value;
+                const urgencyFilter = document.getElementById('urgency-filter').value;
+                const dateFromFilter = document.getElementById('date-from-filter').value;
+                const dateToFilter = document.getElementById('date-to-filter').value;
+
+                if (agentFilter) params.append('agent', agentFilter);
+                if (urgencyFilter) params.append('urgency', urgencyFilter);
+                if (dateFromFilter) params.append('date_from', dateFromFilter);
+                if (dateToFilter) params.append('date_to', dateToFilter);
+
+                const url = `${API_BASE}/api/issues${params.toString() ? '?' + params : ''}`;
+                const response = await fetch(url);
                 const data = await response.json();
 
                 if (!data.success) {
@@ -459,17 +524,19 @@
                     allIssues.push(...col);
                 });
 
-                // Populate agent filter
+                // Populate agent filter (only on initial load)
                 const agentSelect = document.getElementById('agent-filter');
-                data.agents.forEach(agent => {
-                    const option = document.createElement('option');
-                    option.value = agent;
-                    option.textContent = agent.charAt(0).toUpperCase() + agent.slice(1);
-                    agentSelect.appendChild(option);
-                });
+                if (agentSelect.options.length === 1) {  // Only if "All Agents" option exists
+                    data.agents.forEach(agent => {
+                        const option = document.createElement('option');
+                        option.value = agent;
+                        option.textContent = agent.charAt(0).toUpperCase() + agent.slice(1);
+                        agentSelect.appendChild(option);
+                    });
+                }
 
                 renderBoard();
-                updateSyncStatus('✅ Ready');
+                updateSyncStatus(data.filters_applied ? '🔍 Filtered' : '✅ Ready');
             } catch (error) {
                 showError(`Error loading issues: ${error.message}`);
                 updateSyncStatus('❌ Error');
@@ -477,14 +544,8 @@
         }
 
         function filterIssues() {
-            const agentFilter = document.getElementById('agent-filter').value;
-
-            filteredIssues = allIssues.filter(issue => {
-                if (agentFilter && issue.agent !== agentFilter) {
-                    return false;
-                }
-                return true;
-            });
+            // Filters are now applied server-side via API
+            filteredIssues = allIssues;
         }
 
         function renderBoard() {
@@ -544,6 +605,11 @@
             card.id = `card-${issue.id}`;
 
             let metaHtml = '';
+
+            // Urgency badge (most prominent)
+            if (issue.urgency === 'urgent') {
+                metaHtml += `<span class="badge urgency-urgent">🚨 URGENT</span>`;
+            }
 
             if (issue.agent) {
                 metaHtml += `<span class="badge agent">👤 ${issue.agent}</span>`;
@@ -669,6 +735,18 @@
 
         // Event listeners
         document.getElementById('agent-filter').addEventListener('change', () => {
+            renderBoard();
+        });
+
+        document.getElementById('urgency-filter').addEventListener('change', () => {
+            renderBoard();
+        });
+
+        document.getElementById('date-from-filter').addEventListener('change', () => {
+            renderBoard();
+        });
+
+        document.getElementById('date-to-filter').addEventListener('change', () => {
             renderBoard();
         });
 

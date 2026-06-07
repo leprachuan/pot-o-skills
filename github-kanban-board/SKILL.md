@@ -18,20 +18,29 @@ An interactive, configurable kanban board for managing GitHub issues. Display is
 🏷️ **Smart Label Parsing**
 - **Agent Labels**: `agent:devops`, `agent:research` → Filter by team member
 - **Due Date Labels**: `due:2026-06-15` → Color-coded urgency (red=overdue, gold=soon, green=future)
-- **Priority Labels**: `priority:high`, `priority:critical` → Highlighted
+- **Urgency Labels**: `urgent` or `urgency:urgent` → Highlighted with pulsing animation
+- **Priority Labels**: `priority:high`, `priority:critical` → Highlighted with warning badge
 - **Status Labels**: `status:todo`, `status:in-progress`, `status:done` → Auto-synced
+
+🔍 **Advanced Filtering**
+- **Filter by Agent**: Dropdown to show issues for specific team members
+- **Filter by Urgency**: Toggle between Urgent and Normal priority items
+- **Filter by Date Range**: Set "Due From" and "Due To" dates to find issues in a timeframe
+- **Combined Filters**: Use multiple filters simultaneously
 
 🎨 **Professional Design**
 - Glassmorphism dark theme with emerald and gold accents
 - Responsive layout works on desktop and tablet
-- Smooth animations and transitions
+- Smooth animations and transitions including urgent item pulse
 - High-contrast, accessible text
+- Real-time visual feedback for filtered results
 
 🔧 **Fully Configurable**
 - Any GitHub repository (public or private)
 - Custom port and host binding
 - Configurable agent list for filtering
 - Environment variable overrides for CI/CD
+- Date and urgency filtering via API
 
 ## Quick Start
 
@@ -140,6 +149,12 @@ due:2026-06-15
 due:2026-12-31
 ```
 
+### Urgency (NEW!)
+```
+urgent              # Mark as urgent with pulsing animation
+urgency:urgent      # Alternative format
+```
+
 ### Priority
 ```
 priority:critical
@@ -157,13 +172,17 @@ status:done
 
 ### Example Issue Labels
 ```
-agent:devops due:2026-06-20 priority:high
+agent:devops due:2026-06-20 priority:high urgent
 ```
 
 The board will automatically:
+- Mark urgent items with a red 🚨 badge with pulsing animation
 - Assign issues to the "In Progress" column if they have the `status:in-progress` label
 - Color-code due dates: 🔴 red (overdue), 🟡 gold (within 3 days), 🟢 green (future)
-- Filter agents from the dropdown for quick navigation
+- Display agent assignments with 👤 badge
+- **Filter by urgency**: Use the "Urgency" dropdown to show only urgent or normal items
+- **Filter by date range**: Set "Due From" and "Due To" to find issues in a timeframe
+- **Filter by agent**: Select specific team members from the Agent dropdown
 
 ## Network Access
 
