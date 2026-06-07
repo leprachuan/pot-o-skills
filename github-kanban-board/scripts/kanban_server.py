@@ -371,12 +371,23 @@ def dispatch_issue(issue_num: int):
         repo = GITHUB_CLIENT.get_repo(REPO_NAME)
         issue = repo.get_issue(issue_num)
 
+        # Move the issue to "ai-active" on the board immediately so it shows
+        # up in the right column as soon as the agent is dispatched.
+        old_labels = [l.name for l in issue.labels if not l.name.startswith("status:")]
+        issue.set_labels(*(old_labels + ["status:ai-active"]))
+
         prompt = (
-            f"Work on GitHub issue #{issue_num} in {REPO_NAME}: {issue.title}\n\n"
-            f"Issue body:\n{issue.body or '(no description)'}\n\n"
-            f"Read the issue and its latest comments at {issue.html_url} and complete the requested work. "
-            f"Keep the GitHub issue updated throughout your work by posting progress comments. "
-            f"When you are done or need input, leave a summary comment and the issue will be moved to Pending Review."
+            f"Work on GitHub issue #{issue_num} in {REPO_NAME} ({issue.html_url}).\n\n"
+            f"Start by fetching the issue's current title, description, and comments directly from "
+            f"GitHub (it may have changed since this task was dispatched) and read it carefully.\n\n"
+            f"Then:\n"
+            f"1. Confirm the issue has the 'status:ai-active' label (add it if missing) so the kanban "
+            f"board reflects that you're actively working on it.\n"
+            f"2. Complete the requested work, posting comments on the issue as you go to record your "
+            f"status and the steps you've taken.\n"
+            f"3. When you are done or need input, post a summary comment describing what you did and "
+            f"the current state, then replace the 'status:ai-active' label with 'status:pending-review' "
+            f"so the item moves to Pending Review for human review."
         )
 
         task = dispatch_background_task(agent_name, prompt)
